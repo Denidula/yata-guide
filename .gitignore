@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Generated PMTiles data (built by .github/workflows/data-pipeline.yml).
+# 既存のテスト用ファイルはリポジトリに残すため除外対象外にする。
+public/*.pmtiles
+!public/test-range.pmtiles

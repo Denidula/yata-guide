@@ -1,0 +1,154 @@
+name: Data Pipeline (SHP/GeoJSON -> PMTiles)
+
+# 手動実行のみ。自動トリガー（push/schedule）は設定しない。
+# 実データのURL/パスはプレースホルダ。実運用時に input または下記コメントの手順に沿って差し替える。
+on:
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: "変換対象データのURL（SHP zip または GeoJSON）。空の場合はサンプル動作確認のみ。"
+        required: false
+        default: ""
+      layer_name:
+        description: "出力するPMTilesのレイヤー名"
+        required: false
+        default: "layer"
+      max_zoom:
+        description: "tippecanoe --maximum-zoom"
+        required: false
+        default: "14"
+      min_zoom:
+        description: "tippecanoe --minimum-zoom"
+        required: false
+        default: "8"
+
+jobs:
+  build-pmtiles:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # --- 1. GDAL (ogr2ogr) の導入 ---
+      # ubuntu-latest の apt リポジトリに gdal-bin があるため、ソースビルドは不要。
+      - name: Install GDAL (ogr2ogr)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gdal-bin
+          ogr2ogr --version
+
+      # --- 2. tippecanoe の導入（ソースビルド＋キャッシュ） ---
+      # apt には tippecanoe が無い（または古い）ため felt/tippecanoe を毎回ソースからビルドする。
+      # actions/cache でビルド済みバイナリをキャッシュし、2回目以降の実行を高速化する。
+      - name: Cache tippecanoe build
+        id: cache-tippecanoe
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/tippecanoe
+          key: tippecanoe-${{ runner.os }}-v2.80.0
+
+      - name: Build tippecanoe from source
+        if: steps.cache-tippecanoe.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get install -y build-essential libsqlite3-dev zlib1g-dev
+          git clone https://github.com/felt/tippecanoe.git /tmp/tippecanoe
+          cd /tmp/tippecanoe
+          make -j"$(nproc)"
+          sudo make install
+
+      - name: Verify tippecanoe
+        run: tippecanoe --version || true
+
+      # --- 3. 入力データの取得 ---
+      # 実運用時の想定手順（いずれかを選択）:
+      #   a) source_url が SHP の zip の場合:
+      #        curl -L -o input.zip "${{ github.event.inputs.source_url }}"
+      #        unzip -O cp932 input.zip -d input_extracted   # ファイル名がcp932の場合
+      #        SHP_PATH=$(find input_extracted -name '*.shp' | head -1)
+      #   b) source_url が GeoJSON の場合:
+      #        curl -L -o input.geojson "${{ github.event.inputs.source_url }}"
+      #   c) リポジトリ内の data/ 配下に実データを配置している場合はそのパスを直接指定
+      #
+      # ここではプレースホルダとして、source_url が空なら動作確認用のダミーGeoJSONを生成する。
+      - name: Fetch input data
+        run: |
+          mkdir -p work
+          SOURCE_URL="${{ github.event.inputs.source_url }}"
+          if [ -z "$SOURCE_URL" ]; then
+            echo "source_url が未指定のため、動作確認用のダミーGeoJSONを使用します。"
+            cat > work/input.geojson <<'EOF'
+          {
+            "type": "FeatureCollection",
+            "features": [
+              {
+                "type": "Feature",
+                "properties": { "name": "sample" },
+                "geometry": {
+                  "type": "Polygon",
+                  "coordinates": [[[139.75,35.68],[139.76,35.68],[139.76,35.69],[139.75,35.69],[139.75,35.68]]]
+                }
+              }
+            ]
+          }
+          EOF
+          else
+            echo "source_url からデータを取得します: $SOURCE_URL"
+            curl -L -o work/input_raw "$SOURCE_URL"
+            # zip(SHP)かGeoJSONかを拡張子等で判定する処理を実運用時に追記する
+            # 例: unzip -O cp932 work/input_raw -d work/input_extracted
+          fi
+
+      # --- 4. SHP/GeoJSON -> GeoJSON(EPSG:4326) 変換 ---
+      # SHPが入力の場合はogr2ogrで座標系をEPSG:4326に変換する。
+      # 文字コードがcp932(Shift-JIS)のdbfが多いため SHAPE_ENCODING=CP932 を指定する。
+      - name: Convert to GeoJSON (EPSG:4326) with ogr2ogr
+        run: |
+          if [ -f work/input.geojson ]; then
+            echo "GeoJSON入力のため変換をスキップします。"
+            cp work/input.geojson work/converted.geojson
+          else
+            SHP_PATH=$(find work -name '*.shp' | head -1)
+            if [ -n "$SHP_PATH" ]; then
+              SHAPE_ENCODING=CP932 ogr2ogr -f GeoJSON -t_srs EPSG:4326 work/converted.geojson "$SHP_PATH"
+            else
+              echo "変換対象のSHP/GeoJSONが見つかりませんでした。" >&2
+              exit 1
+            fi
+          fi
+
+      # --- 5. GeoJSON -> PMTiles 変換 ---
+      # --drop-densest-as-needed で25MiB程度の制約に収まるよう自動間引きしつつ、
+      # min/max zoomはworkflow_dispatchの入力で調整可能にしている。
+      - name: Convert to PMTiles with tippecanoe
+        run: |
+          LAYER_NAME="${{ github.event.inputs.layer_name }}"
+          MAX_ZOOM="${{ github.event.inputs.max_zoom }}"
+          MIN_ZOOM="${{ github.event.inputs.min_zoom }}"
+          tippecanoe \
+            -o work/output.pmtiles \
+            --drop-densest-as-needed \
+            --maximum-zoom="${MAX_ZOOM:-14}" \
+            --minimum-zoom="${MIN_ZOOM:-8}" \
+            -l "${LAYER_NAME:-layer}" \
+            work/converted.geojson \
+            --force
+          ls -la work/output.pmtiles
+
+      # --- 6. 出力サイズの確認（25MiB目安の参考ログ） ---
+      - name: Report output size
+        run: |
+          SIZE_BYTES=$(stat -c '%s' work/output.pmtiles)
+          SIZE_MIB=$(echo "scale=2; $SIZE_BYTES / 1048576" | bc)
+          echo "PMTiles size: ${SIZE_BYTES} bytes (${SIZE_MIB} MiB)"
+          echo "### PMTiles 出力サイズ" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ${SIZE_BYTES} bytes (${SIZE_MIB} MiB)" >> "$GITHUB_STEP_SUMMARY"
+
+      # --- 7. artifact としてアップロード ---
+      # .pmtiles はリポジトリにはコミットしない運用（.gitignore で除外）。
+      # 配布・確認は本artifactからダウンロードするか、別途配信先（CDN/オブジェクトストレージ等）に配置する。
+      - name: Upload PMTiles artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmtiles-output
+          path: work/output.pmtiles
+          retention-days: 14
