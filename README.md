@@ -40,16 +40,19 @@ npm run preview
 
 危険度データ等の出典・ライセンス表記は、実装時にアプリ内（カード表示・フッター等）の表記に従います。本READMEでは個別データセットの出典は記載しません。
 
-## Cloudflare Pages接続（TODO・後日）
+## Cloudflare Pages接続
 
-Cloudflare Pagesへの接続・デプロイは本スケルトン作成時点では未実施です。後日、以下の手順で対応します。
+Cloudflare Pagesへの接続・デプロイは完了しています。
 
-- [ ] Cloudflareアカウントでのプロジェクト作成、このGitHubリポジトリとの連携
-- [ ] ビルドコマンド（`npm run build`）・出力ディレクトリ（`dist`）の設定
-- [ ] 本番デプロイ後、実際に公開URLで地図が表示されることの確認
-- [ ] **PMTilesに必須のHTTP Range requestが本番環境でも効いているかの実測確認**
-  - [ ] レスポンスヘッダーに `Accept-Ranges: bytes` が含まれるか
-  - [ ] Rangeリクエスト時に `206 Partial Content` が返るか（`200`で全体を返してしまっていないか）
-  - [ ] 実際のPMTilesファイル（ダミーではなく本番相当サイズ）で、タイル読み込み時に必要な範囲のみがダウンロードされているか（ブラウザのネットワークタブで転送量を確認）
-- [ ] カスタムドメイン設定（必要な場合）
-- [ ] PWAのオフライン機能・キャッシュ戦略の本実装（現状はapp shellのprecacheのみ）
+- **本番URL**：https://yata-guide.pages.dev/
+- **設定**：Framework preset = `None` / Build command = `npm run build` / Output directory = `dist` / 環境変数 `NODE_VERSION=22`
+- カスタムドメイン設定・PWAのオフライン機能・キャッシュ戦略の本実装（現状はapp shellのprecacheのみ）は今後対応
+
+### 重要な実測結果：Cloudflare PagesはHTTP Range requestを無視する
+
+PMTilesの配信にはHTTP Range requestへの対応が必須ですが、Cloudflare Pages（本リポジトリのデプロイ先）は**Rangeリクエストを無視し、常に200 OKで全量を返す**ことを実測で確認しました。
+
+- **検証方法**：1MBのバイナリ `public/test-range.pmtiles` をデプロイし、Range指定（`bytes=0-99` および中間レンジ）でGETリクエストを送信。curl（`-H`ヘッダー指定 / `-r`オプションの2方式）＋.NET `HttpWebRequest`の合計3クライアントで検証
+- **結果**：キャッシュウォーム後も含め、全てのケースで**200 OK・全量1,048,576バイトを返却**（`206 Partial Content`にならない）。レスポンスヘッダーに`Accept-Ranges: bytes`は含まれるが、実際にはRangeリクエストに対応していない
+- **帰結**：**PMTilesを本リポジトリのCloudflare Pagesから配信することはできません。** PMTiles配信はCloudflare R2（Range対応・無料枠10GB・egress無料）または、ハッカソン運営提供環境を使う分離構成にします（最終決定はPre-Meeting後）
+- `public/test-range.pmtiles` は将来の再測定用に意図的に残置しています。削除しないでください。
