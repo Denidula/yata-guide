@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { usePlanStore } from '../store/usePlanStore'
 import { RankGauge } from './RankGauge'
 import {
@@ -8,6 +9,13 @@ import {
   LIQ_WORD,
 } from '../lib/constants'
 import type { RiskInfo } from '../lib/risk'
+import {
+  loadAreas,
+  loadCenters,
+  filterAreasByHazard,
+  nearestOne,
+  type FacilityWithDistance,
+} from '../lib/shelters'
 
 /** 液状化スケールの塗り色（3以上は橙で警告寄せ、ワイヤーフレーム準拠）。 */
 function liqColor(level: number): string {
@@ -29,6 +37,32 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
 
   const overall = risk.total.rank
   const showCoarseNote = coords != null && !coords.precise
+
+  // 避難先サマリー：地震のとき近い避難場所1件＋最寄りの避難所1件。
+  const [nearArea, setNearArea] = useState<FacilityWithDistance | null>(null)
+  const [nearCenter, setNearCenter] = useState<FacilityWithDistance | null>(null)
+  useEffect(() => {
+    if (!coords) return
+    let alive = true
+    const origin = { lng: coords.lng, lat: coords.lat }
+    void loadAreas()
+      .then((areas) => {
+        if (!alive) return
+        // カードは地震を主導線とするため地震対応の避難場所から最寄りを取る。
+        const quakeAreas = filterAreasByHazard(areas, 'quake')
+        setNearArea(nearestOne(origin, quakeAreas))
+      })
+      .catch((e) => console.error('card nearest area failed:', e))
+    void loadCenters()
+      .then((centers) => {
+        if (!alive) return
+        setNearCenter(nearestOne(origin, centers))
+      })
+      .catch((e) => console.error('card nearest center failed:', e))
+    return () => {
+      alive = false
+    }
+  }, [coords])
 
   return (
     <section aria-label="危険度カード">
@@ -170,7 +204,50 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
         */}
       </div>
 
-      {/* 次アクション：地図はW2で実装済み。計画は準備中。 */}
+      {/* 避難先サマリー（地震のとき近い避難場所1件＋最寄りの避難所1件） */}
+      <div className="evac-summary">
+        <div className="es-title">
+          <span aria-hidden="true">🚸</span> {STRINGS.card.evacTitle}
+        </div>
+
+        {nearArea ? (
+          <div className="es-row area">
+            <div className="es-head">
+              <span className="es-dot area" aria-hidden="true" />
+              <span className="es-label">{STRINGS.card.evacAreaLabel}</span>
+            </div>
+            <div className="es-name">{nearArea.name}</div>
+            <div className="es-dist">
+              {STRINGS.map.distFmt(nearArea.distanceM, nearArea.walkMin)}
+            </div>
+            <div className="es-note">{STRINGS.card.evacAreaNote}</div>
+          </div>
+        ) : (
+          <div className="es-row area">
+            <div className="es-head">
+              <span className="es-dot area" aria-hidden="true" />
+              <span className="es-label">{STRINGS.card.evacAreaLabel}</span>
+            </div>
+            <div className="es-none">{STRINGS.card.evacNone}</div>
+          </div>
+        )}
+
+        {nearCenter && (
+          <div className="es-row center">
+            <div className="es-head">
+              <span className="es-dot center" aria-hidden="true" />
+              <span className="es-label">{STRINGS.card.evacCenterLabel}</span>
+            </div>
+            <div className="es-name">{nearCenter.name}</div>
+            <div className="es-dist">
+              {STRINGS.map.distFmt(nearCenter.distanceM, nearCenter.walkMin)}
+            </div>
+            <div className="es-note">{STRINGS.card.evacCenterNote}</div>
+          </div>
+        )}
+      </div>
+
+      {/* 次アクション：地図で避難先を確認。計画づくりは準備中。 */}
       <div className="next-cta">
         <button className="btn big" onClick={() => setView('map')}>
           <span aria-hidden="true">🗺️</span> {STRINGS.card.ctaMap}

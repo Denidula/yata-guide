@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { usePlanStore } from '../store/usePlanStore'
 import { preloadPip } from '../lib/pip'
 import { loadLookup } from '../lib/risk'
+import { preloadFacilities } from '../lib/shelters'
 import { STRINGS, DEMO_CHIPS, RANK_COLOR } from '../lib/constants'
 
 /**
@@ -19,6 +20,7 @@ export function Home() {
   useEffect(() => {
     void preloadPip()
     void loadLookup()
+    void preloadFacilities()
   }, [])
 
   const submitAddress = () => {

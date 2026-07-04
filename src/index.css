@@ -26,6 +26,12 @@
   --r4: #e8631c;
   --r5: #c31d5b;
 
+  /* 避難先ピン配色（ワイヤーフレーム準拠：避難所=青系 / 避難場所=緑系） */
+  --evac-center: #1266c7; /* 避難所（生活避難）：青 */
+  --evac-center-ink: #0b4f9e;
+  --evac-area: #0f7a4d; /* 避難場所（災害時に逃げる先）：緑 */
+  --evac-area-ink: #0a5a39;
+
   --radius: 14px;
   --radius-sm: 9px;
   --shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 6px 20px rgba(16, 24, 40, 0.06);
@@ -903,6 +909,283 @@ body {
   border-radius: 10px;
   padding: 10px 12px;
   box-shadow: 0 4px 16px rgba(16, 24, 40, 0.18);
+}
+
+/* 凡例：円ピン用スウォッチ（避難先） */
+.map-legend .sw.dot {
+  border-radius: 50%;
+  border-color: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+.map-legend .lg-sub.evac {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid var(--line);
+}
+
+/* 避難先ポップアップ（避難場所／避難所） */
+.ev-pop {
+  font-family: inherit;
+  min-width: 168px;
+}
+.ev-pop-kind {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.ev-pop-kind .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+.ev-pop-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+.ev-pop-addr {
+  font-size: 11.5px;
+  color: var(--ink-sub);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+.ev-pop-dist {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  margin-top: 5px;
+}
+.ev-pop-line {
+  font-size: 11.5px;
+  color: var(--ink-sub);
+  line-height: 1.4;
+  margin-top: 5px;
+}
+.ev-pop-line .k {
+  display: inline-block;
+  font-weight: 800;
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  margin-right: 5px;
+}
+.ev-pop-line.bf .ev-bf-wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  vertical-align: top;
+}
+.ev-bf {
+  display: inline-block;
+  background: #eef4ec;
+  color: #0a5a39;
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.ev-bf.none {
+  background: #f0f2f5;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+/* =========================================================================
+   避難先リスト（地図画面・地図の下）
+   ========================================================================= */
+.evac-list {
+  padding: 12px 16px 4px;
+  border-top: 1px solid var(--line);
+}
+.evac-list-h {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  margin-bottom: 8px;
+}
+.evac-list-h.sub {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+  color: var(--evac-center-ink);
+}
+.evac-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.evac-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  min-height: 56px;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.evac-item:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+.ev-rank {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+}
+.ev-rank.area {
+  background: var(--evac-area);
+}
+.ev-rank.center {
+  background: var(--evac-center);
+  font-size: 12px;
+}
+.ev-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ev-name {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ev-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--ink-sub);
+  font-weight: 600;
+}
+.ev-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: #fff;
+}
+.ev-tag.area {
+  background: var(--evac-area);
+}
+.ev-tag.center {
+  background: var(--evac-center);
+}
+.ev-go {
+  flex: 0 0 auto;
+  font-size: 22px;
+  color: var(--ink-faint);
+  line-height: 1;
+}
+.evac-empty {
+  margin-top: 2px;
+}
+.evac-walknote {
+  margin: 10px 0 4px;
+  font-size: 11px;
+  color: var(--ink-faint);
+  line-height: 1.4;
+}
+
+/* =========================================================================
+   避難先サマリー（危険度カード内）
+   ========================================================================= */
+.evac-summary {
+  margin: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 15px;
+  background: linear-gradient(180deg, #f7faf8, var(--surface));
+}
+.es-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.es-row {
+  padding: 10px 0;
+}
+.es-row + .es-row {
+  border-top: 1px dashed var(--line);
+}
+.es-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+.es-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+.es-dot.area {
+  background: var(--evac-area);
+}
+.es-dot.center {
+  background: var(--evac-center);
+}
+.es-label {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--ink-sub);
+  letter-spacing: 0.02em;
+}
+.es-name {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.35;
+}
+.es-dist {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  margin-top: 2px;
+}
+.es-note {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  line-height: 1.45;
+  margin-top: 3px;
+}
+.es-none {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  line-height: 1.45;
 }
 
 /* =========================================================================
