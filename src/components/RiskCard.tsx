@@ -25,6 +25,7 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
   const address = usePlanStore((s) => s.address)
   const coords = usePlanStore((s) => s.coords)
   const backToHome = usePlanStore((s) => s.backToHome)
+  const setView = usePlanStore((s) => s.setView)
 
   const overall = risk.total.rank
   const showCoarseNote = coords != null && !coords.precise
@@ -169,9 +170,9 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
         */}
       </div>
 
-      {/* 次アクション（W2で地図・計画を実装。現状は準備中） */}
+      {/* 次アクション：地図はW2で実装済み。計画は準備中。 */}
       <div className="next-cta">
-        <button className="btn big" disabled title={STRINGS.card.ctaComingSoon}>
+        <button className="btn big" onClick={() => setView('map')}>
           <span aria-hidden="true">🗺️</span> {STRINGS.card.ctaMap}
         </button>
         <button className="btn secondary" disabled title={STRINGS.card.ctaComingSoon}>

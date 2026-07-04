@@ -29,7 +29,18 @@ export type ErrorCode =
 
 export type LocationSource = 'input' | 'gps' | 'demo'
 
+/**
+ * 下部タブバーの表示ビュー。
+ * uiStatus（判定フローの状態）とは独立に、タブでの画面切替を表す。
+ * - home: ホーム／住所入力（またはlocating/error）
+ * - card: 危険度カード（risk確定時のみ到達可能）
+ * - map:  避難先マップ（risk確定時のみ到達可能）
+ */
+export type AppView = 'home' | 'card' | 'map'
+
 export interface PlanState {
+  /** 下部タブの表示ビュー */
+  view: AppView
   /** 住所入力欄の現在値（未確定） */
   addressInput: string
   /** 確定した住所文字列（ヘッダー表示用） */
@@ -46,6 +57,8 @@ export interface PlanState {
   source: LocationSource | null
 
   setAddressInput: (value: string) => void
+  /** タブでビューを切り替える（card/mapはrisk確定時のみ有効）。 */
+  setView: (view: AppView) => void
   /** 住所文字列から判定（入力 or デモchip）。 */
   resolveByAddress: (address: string, source: LocationSource) => Promise<void>
   /** 緯度経度から直接判定（現在地ボタン）。 */
@@ -58,6 +71,7 @@ export interface PlanState {
 }
 
 const initialState = {
+  view: 'home' as AppView,
   addressInput: '',
   address: null,
   coords: null,
@@ -93,6 +107,7 @@ async function resolveFromCoords(
     risk,
     source,
     uiStatus: { kind: 'ready' },
+    view: 'card', // 判定完了で危険度カードへ
   })
 }
 
@@ -104,6 +119,8 @@ export const usePlanStore = create<PlanState>((set) => ({
   ...initialState,
 
   setAddressInput: (value) => set({ addressInput: value }),
+
+  setView: (view) => set({ view }),
 
   resolveByAddress: async (address, source) => {
     set({ uiStatus: { kind: 'locating' } })
@@ -138,6 +155,7 @@ export const usePlanStore = create<PlanState>((set) => ({
 
   backToHome: () =>
     set({
+      view: 'home',
       address: null,
       coords: null,
       chomokuId: null,
