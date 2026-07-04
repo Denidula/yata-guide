@@ -662,3 +662,290 @@ body {
   flex-direction: column;
   gap: 14px;
 }
+
+/* =========================================================================
+   画面3：避難先マップ（MapLibre実地図）
+   ワイヤーフレーム docs/wireframe/index.html の地図画面に準拠。
+   ========================================================================= */
+
+/* 端末枠にタブバーがあるとき、本文がタブバーに隠れないよう下余白を確保 */
+.stage.has-tabbar {
+  padding-bottom: 60px;
+}
+
+.section-label {
+  background: #f4f6f9;
+  padding: 8px 16px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--ink-sub);
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--line);
+}
+
+.map-screen {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ライブ地図の枠（ワイヤーの .map-wrap 相当、実地図なので高さを確保） */
+.map-wrap-live {
+  position: relative;
+  height: 62vh;
+  min-height: 420px;
+  background: #dce3ec;
+  overflow: hidden;
+}
+/*
+  MapLibreはコンテナに .maplibregl-map（position:relative）を付与し、
+  こちらの position:absolute/inset を打ち消してしまう。高さが潰れないよう
+  合成セレクタで確実に絶対配置＋全面に広げる。
+*/
+.map-canvas-live,
+.map-canvas-live.maplibregl-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* MapLibreコントロールの体裁を軽く調整 */
+.map-wrap-live .maplibregl-ctrl-attrib {
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+/* 災害種別タブ */
+.hazard-tabs {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 6;
+  display: flex;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 11px;
+  padding: 5px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(4px);
+  overflow-x: auto;
+}
+.hazard-tabs button {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-sub);
+  white-space: nowrap;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.hazard-tabs button .ic {
+  font-size: 16px;
+}
+.hazard-tabs button[aria-pressed="true"] {
+  background: var(--brand);
+  color: #fff;
+}
+
+/* わが家マーカー（DOM要素マーカー） */
+.home-pin {
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--r5);
+  border: 2px solid #fff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+  display: grid;
+  place-items: center;
+  cursor: default;
+}
+.home-pin span {
+  transform: rotate(45deg);
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* 凡例 */
+.map-legend {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 11px;
+  box-shadow: var(--shadow);
+  z-index: 6;
+  max-width: 210px;
+}
+.map-legend .lg-t {
+  font-weight: 800;
+  font-size: 11px;
+  margin-bottom: 5px;
+  color: var(--ink-sub);
+}
+.map-legend .lg-sub {
+  font-weight: 700;
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  margin: 2px 0 4px;
+}
+.map-legend .lg-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0;
+  line-height: 1.3;
+  color: var(--ink);
+}
+.map-legend .lg-row.you {
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px solid var(--line);
+}
+.map-legend .sw {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+.map-legend .sw.pin-sw {
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  width: 12px;
+  height: 12px;
+  background: var(--r5);
+  border-color: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+.map-legend .lg-note {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-faint);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+/* グレースフルデグレード／注記バナー（地図上部） */
+.map-banner {
+  position: absolute;
+  top: 64px;
+  left: 10px;
+  right: 10px;
+  z-index: 6;
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  background: rgba(251, 246, 231, 0.96);
+  border: 1px solid #ead9a6;
+  border-radius: var(--radius-sm);
+  padding: 8px 11px;
+  font-size: 12px;
+  color: #6b551a;
+  line-height: 1.45;
+  box-shadow: var(--shadow);
+}
+.map-banner.soft {
+  background: rgba(241, 243, 246, 0.96);
+  border-color: var(--line);
+  color: var(--ink-sub);
+}
+.map-banner .i {
+  flex: 0 0 auto;
+  font-weight: 900;
+}
+
+/* 出典（地図下部） */
+.disclaimer.map-src {
+  border-top: 0;
+}
+
+/* ポップアップ（町丁目名＋ランク） */
+.hz-pop {
+  font-family: inherit;
+}
+.hz-pop-t {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.hz-pop-r {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-sub);
+}
+.hz-pop-sw {
+  width: 13px;
+  height: 13px;
+  border-radius: 4px;
+  display: inline-block;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+.maplibregl-popup-content {
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 4px 16px rgba(16, 24, 40, 0.18);
+}
+
+/* =========================================================================
+   下部タブバー（ホーム／危険度／地図）
+   ========================================================================= */
+.tabbar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 0;
+  width: 100%;
+  max-width: var(--maxw);
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  display: flex;
+  z-index: 30;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tabbar button {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 8px 2px 9px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink-faint);
+  font-size: 10.5px;
+  line-height: 1.2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-height: 56px;
+}
+.tabbar button .ic {
+  font-size: 20px;
+  line-height: 1;
+}
+.tabbar button[aria-current="true"] {
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.tabbar button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
