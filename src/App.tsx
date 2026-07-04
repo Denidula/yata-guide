@@ -1,15 +1,26 @@
-import { MapView } from './components/MapView'
+import { usePlanStore } from './store/usePlanStore'
+import { Header } from './components/Header'
+import { Home } from './components/Home'
+import { RiskCard } from './components/RiskCard'
+import { LoadingScreen, ErrorScreen } from './components/StatusScreens'
 
+/**
+ * 画面ルーティング。uiStatus に応じてホーム／判定中／危険度カード／エラーを切り替える。
+ * （W2で地図・計画・共有画面を追加予定。既存 MapView はW2の地図統合で復帰させる。）
+ */
 function App() {
+  const uiStatus = usePlanStore((s) => s.uiStatus)
+  const risk = usePlanStore((s) => s.risk)
+
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden">
-      <header className="z-10 flex items-baseline gap-3 border-b border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <h1 className="text-lg font-bold tracking-tight text-slate-900">YATA GUIDE</h1>
-        <p className="text-sm text-slate-500">わが家の避難計画、3秒で。</p>
-      </header>
-      <main className="relative flex-1">
-        <MapView />
-      </main>
+    <div className="stage">
+      <Header />
+      {uiStatus.kind === 'locating' && <LoadingScreen />}
+      {uiStatus.kind === 'error' && <ErrorScreen code={uiStatus.code} />}
+      {uiStatus.kind === 'ready' && risk && <RiskCard risk={risk} />}
+      {(uiStatus.kind === 'idle' ||
+        // ready だが risk 未取得のフォールバック
+        (uiStatus.kind === 'ready' && !risk)) && <Home />}
     </div>
   )
 }
