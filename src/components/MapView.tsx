@@ -23,6 +23,8 @@ const HOME_ZOOM = 13
 const RISK_FILL_OPACITY = 0.55
 /** 浸水系の塗り/円の透明度。 */
 const DEPTH_OPACITY = 0.6
+/** 地図初期化のタイムアウト（ms）。これを過ぎてもloadが来なければデグレード表示。 */
+const MAP_LOAD_TIMEOUT_MS = 7000
 
 type LayerLoadState = 'idle' | 'loading' | 'ready' | 'degraded'
 
@@ -158,7 +160,22 @@ export function MapView() {
         .addTo(map)
     }
 
+    // 地図の初期化ウォッチドッグ：一定時間内に load が来なければ「配信準備中」に落とす。
+    // ベース地図の初期化自体が失敗する環境でも、無言の真っ白ではなく案内を出すための保険。
+    const loadWatchdog = window.setTimeout(() => {
+      if (!styleReadyRef.current) {
+        if (!hasLoggedDegrade) {
+          hasLoggedDegrade = true
+          console.info(
+            '[YATA GUIDE] 地図エンジンの初期化がタイムアウトしました。ベース地図なしで案内のみ表示します。',
+          )
+        }
+        setLayerState('degraded')
+      }
+    }, MAP_LOAD_TIMEOUT_MS)
+
     map.on('load', () => {
+      window.clearTimeout(loadWatchdog)
       styleReadyRef.current = true
       map.resize() // 初期化時にコンテナ高さが未確定でも確実に合わせる
       void addHazardLayers(map)
@@ -170,6 +187,7 @@ export function MapView() {
 
     mapRef.current = map
     return () => {
+      window.clearTimeout(loadWatchdog)
       ro.disconnect()
       map.remove()
       mapRef.current = null
