@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { PMTiles, Protocol } from 'pmtiles'
+import { Protocol } from 'pmtiles'
 import { usePlanStore } from '../store/usePlanStore'
 import {
   STRINGS,
@@ -31,6 +31,31 @@ type LayerLoadState = 'idle' | 'loading' | 'ready' | 'degraded'
  * React StrictModeの二重マウントや、タブ往復による再マウントでも重複させない。
  */
 let hasLoggedDegrade = false
+
+/** PMTilesのマジックバイト（ファイル先頭7バイト "PMTiles"）。 */
+const PMTILES_MAGIC = 'PMTiles'
+
+/**
+ * タイルの配信可否プローブ。
+ * 先頭バイトをRangeで要求し、(1)ステータスが206（＝サーバがRange対応）かつ
+ * (2)実体がPMTilesマジックで始まる、の両方を満たすときだけ true。
+ * これにより、Rangeを無視して200で全量やSPAフォールバックのHTMLを返す環境
+ * （本番Cloudflare Pages等）を確実に「配信不可」と判定できる。
+ * 例外は投げず、失敗時は false を返す（未捕捉エラーをコンソールに出さない）。
+ */
+async function probePmtiles(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { headers: { Range: 'bytes=0-6' } })
+    // 206以外（200含む）はRange非対応とみなす。
+    if (res.status !== 206) return false
+    const buf = await res.arrayBuffer()
+    if (buf.byteLength < PMTILES_MAGIC.length) return false
+    const magic = new TextDecoder().decode(new Uint8Array(buf).slice(0, PMTILES_MAGIC.length))
+    return magic === PMTILES_MAGIC
+  } catch {
+    return false
+  }
+}
 
 /**
  * MapLibreの fill-color / circle-color 用に、浸水深(m)→段階色の step 式を組む。
@@ -181,8 +206,9 @@ export function MapView() {
 
   /**
    * ハザードPMTiles群を追加する。
-   * 各ファイルのヘッダーfetchを試み、成功したものだけ source+layer を追加。
-   * 1件でも失敗（=Range非対応環境）したらバナーを出す（コンソールにはinfoを1回だけ）。
+   * 各ファイルを「配信可否」プローブで検証し、実体がPMTilesのものだけ source+layer を追加。
+   * 1件でも失敗（=Range非対応環境／SPAフォールバックのHTMLが返る等）したら
+   * バナーを出す（コンソールにはinfoを1回だけ）。
    */
   async function addHazardLayers(map: maplibregl.Map) {
     setLayerState('loading')
@@ -191,20 +217,16 @@ export function MapView() {
 
     for (const h of HAZARDS) {
       const url = `${TILES_BASE_URL}/${h.file}`
-      try {
-        // ヘッダー（先頭127B）をRangeで取得できるかで配信可否を判定する。
-        const p = new PMTiles(url)
-        const header = await p.getHeader()
-        if (!header || typeof header.tileType === 'undefined') throw new Error('no header')
+      const ok = await probePmtiles(url)
+      if (ok) {
         availRef.current[h.key] = true
         anyOk = true
-
         const sourceId = `hz-${h.key}`
         if (!map.getSource(sourceId)) {
           map.addSource(sourceId, { type: 'vector', url: `pmtiles://${url}` })
         }
         addHazardStyleLayers(map, h.key, sourceId, h.sourceLayer)
-      } catch {
+      } else {
         availRef.current[h.key] = false
         anyFail = true
       }
