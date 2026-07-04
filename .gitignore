@@ -24,6 +24,8 @@ dist-ssr
 *.sw?
 
 # Generated PMTiles data (built by .github/workflows/data-pipeline.yml).
-# 既存のテスト用ファイルはリポジトリに残すため除外対象外にする。
+# public 直下・サブディレクトリ（public/tiles/ 等）配下すべての .pmtiles を除外。
+# 既存のRange再測定用 public/test-range.pmtiles だけは残す。
 public/*.pmtiles
+public/**/*.pmtiles
 !public/test-range.pmtiles

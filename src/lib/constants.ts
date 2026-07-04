@@ -45,6 +45,67 @@ export const RANK_NOTE: Record<number, string> = {
 /** 全町丁目数（都内順位の分母）。 */
 export const TOTAL_CHOME = 5192
 
+/**
+ * ハザードタイル（PMTiles）の配信ベースURL。
+ * ローカル/本番Cloudflare Pagesでは同梱の `/tiles` を指す（devはVite静的配信がRange=206に対応）。
+ * 後日R2へ移す際は `.env` に `VITE_TILES_BASE_URL=https://xxx.r2.dev` を置くだけで切替できる。
+ * 末尾スラッシュは付けない前提（`${TILES_BASE_URL}/chomoku_risk.pmtiles`）。
+ */
+export const TILES_BASE_URL: string =
+  (import.meta.env.VITE_TILES_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? '/tiles'
+
+/**
+ * ハザードレイヤー定義（PMTilesの実ヘッダー・T5レポートで確認した実レイヤ名/属性）。
+ * - chomoku_risk: Polygon / 属性 総合_ラ(1〜5), 建物_ラ, 火災_ラ, 町丁目名, 区市町村名, ID
+ * - shinsui:      Point   / 属性 depth_m（0.0001〜73m, z8-12）
+ * - tsunami:      Point   / 属性 depth_m, region, scenario（伊豆・小笠原諸島域。都区部には無い）
+ * - takashio:     Polygon / 属性 DepthM（大文字D, 0.01〜19.36m, z8-14）
+ */
+export type HazardKey = 'quake' | 'flood' | 'tsunami' | 'storm'
+
+export interface HazardDef {
+  key: HazardKey
+  /** タブ表示ラベル */
+  label: string
+  /** タブアイコン（絵文字） */
+  icon: string
+  /** PMTilesファイル名（TILES_BASE_URL 配下） */
+  file: string
+  /** PMTiles内のソースレイヤ名 */
+  sourceLayer: string
+}
+
+export const HAZARDS: HazardDef[] = [
+  { key: 'quake', label: '地震', icon: '🏚️', file: 'chomoku_risk.pmtiles', sourceLayer: 'chomoku_risk' },
+  { key: 'flood', label: '洪水', icon: '🌊', file: 'shinsui.pmtiles', sourceLayer: 'shinsui' },
+  { key: 'tsunami', label: '津波', icon: '🌀', file: 'tsunami.pmtiles', sourceLayer: 'tsunami' },
+  { key: 'storm', label: '高潮', icon: '💨', file: 'takashio.pmtiles', sourceLayer: 'takashio' },
+]
+
+/**
+ * 浸水深（m）の段階色（浅→深）。浸水・津波・高潮で共通。
+ * 気象庁・国土地理院の浸水ランク配色（黄→橙→赤→紫）に近い、色覚配慮の順序色。
+ * [しきい値(m), 色] の昇順。値がしきい値“以上”で当該色。
+ */
+export const DEPTH_STEPS: Array<[number, string]> = [
+  [0, '#BEE3F2'], // ごく浅い（<0.5m相当の下限）
+  [0.5, '#7FC6E8'], // 0.5m〜
+  [1.0, '#F2D24B'], // 1.0m〜（床上目安）
+  [3.0, '#EE8B3A'], // 3.0m〜（1階水没目安）
+  [5.0, '#D6443C'], // 5.0m〜（2階water没目安）
+  [10.0, '#8E44AD'], // 10m〜（甚大）
+]
+
+/** 凡例に出す浸水深区分の説明ラベル（DEPTH_STEPSと対応）。 */
+export const DEPTH_LEGEND: Array<{ color: string; label: string }> = [
+  { color: '#BEE3F2', label: '〜0.5m 未満' },
+  { color: '#7FC6E8', label: '0.5〜1m' },
+  { color: '#F2D24B', label: '1〜3m（床上）' },
+  { color: '#EE8B3A', label: '3〜5m（1階水没）' },
+  { color: '#D6443C', label: '5〜10m（2階水没）' },
+  { color: '#8E44AD', label: '10m以上' },
+]
+
 /** 液状化「起こりやすさ」4段階の語。 */
 export const LIQ_WORD: Record<number, string> = {
   1: '低い',
@@ -123,10 +184,40 @@ export const STRINGS = {
       '液状化の公式GISデータが東京都に無いため、東京都の地盤分類（震動増幅率の区分）に基づく参考情報です。公式の液状化予測図とは異なります。',
     // 精度が代表点レベル（point.level<8）のときの注記
     coarsePrecisionNote: '丁目の代表点で判定しています（番地までは特定していません）。',
-    // 次アクション（W2で地図・計画を実装。現状はプレースホルダ）
+    // 次アクション（W2で地図を実装。計画はプレースホルダのまま）
     ctaMap: '避難先を地図で見る',
     ctaPlan: 'わが家の避難計画をつくる',
     ctaComingSoon: 'この機能は準備中です（W2で実装）',
+  },
+
+  // 下部タブバー（ホーム/カード/地図の3タブ）
+  tabs: {
+    home: 'ホーム',
+    card: '危険度',
+    map: '地図',
+  },
+
+  // 地図画面
+  map: {
+    // section-label（表示中の災害種別＋地点）
+    sectionPrefix: '避難先マップ',
+    // 災害種別タブのラベルはHAZARDSを使用
+    // 凡例
+    legendTitle: '凡例',
+    legendRankHigh: '総合危険度 高（ランク5）',
+    legendRankMid: '同 中（ランク3）',
+    legendYou: 'わが家（判定した地点）',
+    legendNoData: '空欄＝情報なし・非該当の区別不能',
+    quakeLegendTitle: '地域危険度（総合ランク）',
+    depthLegendTitle: '浸水の深さ（想定最大）',
+    // 島しょ部データしか無い津波レイヤーで都区部を表示したときの注記
+    tsunamiMainlandNote:
+      '津波浸水想定は伊豆・小笠原諸島の対象区域データです。この地点周辺には表示データがありません。',
+    // グレースフルデグレード（本番Range非対応環境）
+    degradeBanner: 'ハザードレイヤーは配信準備中です。ベース地図とわが家の位置のみ表示しています。',
+    // 出典（地図下部フッター。disclaimer_draft.md §地図画面の出典）
+    attribution:
+      '出典：地域危険度（第9回・東京都都市整備局）／浸水予想区域図（東京都建設局）／津波浸水分布（東京都総務局）／高潮浸水想定区域図（東京都港湾局）／背景地図＝国土地理院。座標変換・タイル化・ランク色分け等の加工を行った参考情報で、各発表元が作成した情報ではありません。',
   },
 
   // 出典・免責フッター（disclaimer_draft.md §2-2 カードフッター短縮版）
