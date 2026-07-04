@@ -32,6 +32,12 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // デプロイ直後に新バンドルを即時有効化する（旧SW/旧キャッシュが検証を妨げないように）。
+        // waiting 状態を飛ばして即 activate し、既存クライアントを新SWの制御下へ引き取る。
+        skipWaiting: true,
+        clientsClaim: true,
+        // 旧プリキャッシュ（前デプロイのアセット）を掃除し、古いJS/CSSの取り違えを防ぐ。
+        cleanupOutdatedCaches: true,
       },
     }),
   ],
