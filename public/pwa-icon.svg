@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    YATA GUIDE アプリアイコン（マスカブル対応の暫定版）。
+    ネイビー#0B2545の角丸地に、白い八咫烏（やたがらす）モチーフの鳥シルエット＋「YATA」。
+    重要要素はマスカブル安全領域（中央80%＝一辺約410px, 余白51px）内に収める。
+    R1で差し替え可能な暫定クオリティ。
+  -->
+  <rect width="512" height="512" rx="112" fill="#0B2545"/>
+  <!-- 八咫烏シルエット（横向きに飛ぶ烏を簡略化）。白。中央やや上に配置。 -->
+  <g fill="#FFFFFF" transform="translate(256 214)">
+    <!-- 胴体＋頭 -->
+    <path d="M-96 8
+             C-96 -34 -60 -60 -18 -60
+             C6 -60 26 -49 40 -32
+             L96 -44
+             L70 -12
+             L104 4
+             L64 12
+             C58 40 30 58 -8 58
+             C-56 58 -96 38 -96 8 Z"/>
+    <!-- 翼（上に跳ね上げる一枚） -->
+    <path d="M-28 -44
+             C-8 -84 30 -104 74 -104
+             C48 -84 34 -60 30 -40
+             C8 -52 -12 -52 -28 -44 Z"/>
+    <!-- 尾羽 -->
+    <path d="M-96 8 L-140 -8 L-116 12 L-140 30 L-96 22 Z"/>
+    <!-- 脚（三本足＝八咫烏の象徴。簡略に3本） -->
+    <g stroke="#FFFFFF" stroke-width="7" stroke-linecap="round">
+      <line x1="-24" y1="56" x2="-40" y2="92"/>
+      <line x1="0" y1="58" x2="0" y2="96"/>
+      <line x1="24" y1="56" x2="40" y2="92"/>
+    </g>
+    <!-- 目（地の色で抜く） -->
+    <circle cx="6" cy="-30" r="6" fill="#0B2545"/>
+  </g>
+  <!-- ワードマーク -->
+  <text x="256" y="418" text-anchor="middle"
+        font-family="Inter, 'Segoe UI', Arial, sans-serif"
+        font-size="92" font-weight="800" letter-spacing="6" fill="#FFFFFF">YATA</text>
+</svg>
