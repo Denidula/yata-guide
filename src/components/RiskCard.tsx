@@ -34,6 +34,7 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
   const coords = usePlanStore((s) => s.coords)
   const backToHome = usePlanStore((s) => s.backToHome)
   const setView = usePlanStore((s) => s.setView)
+  const restored = usePlanStore((s) => s.restoredFromStorage)
 
   const overall = risk.total.rank
   const showCoarseNote = coords != null && !coords.precise
@@ -66,6 +67,24 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
 
   return (
     <section aria-label="危険度カード">
+      {/* 前回結果の復元表示（永続化からの再訪）。ラベル＋再判定導線。 */}
+      {restored && (
+        <div className="restored-bar" role="status">
+          <div className="rb-main">
+            <span className="rb-tag">
+              <span className="i" aria-hidden="true">
+                🕘
+              </span>
+              {STRINGS.card.restoredLabel}
+            </span>
+            <span className="rb-note">{STRINGS.card.restoredNote}</span>
+          </div>
+          <button className="rb-btn" onClick={backToHome}>
+            {STRINGS.card.rejudgeBtn}
+          </button>
+        </div>
+      )}
+
       {/* 住所ヘッダー */}
       <div className="addr-head">
         <span className="pin" aria-hidden="true">

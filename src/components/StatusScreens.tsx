@@ -13,6 +13,7 @@ export function LoadingScreen() {
 
 const ERROR_MESSAGE: Record<ErrorCode, string> = {
   geocode_failed: STRINGS.errors.geocodeFailed,
+  geocode_offline: STRINGS.errors.geocodeOffline,
   out_of_area: STRINGS.errors.outOfArea,
   geo_denied: STRINGS.errors.geoDenied,
   geo_unavailable: STRINGS.errors.geoUnavailable,
