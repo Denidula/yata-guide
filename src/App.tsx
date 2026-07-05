@@ -1,4 +1,6 @@
 import { usePlanStore } from './store/usePlanStore'
+import { useOnlineStatus } from './lib/useOnlineStatus'
+import { STRINGS } from './lib/constants'
 import { Header } from './components/Header'
 import { Home } from './components/Home'
 import { RiskCard } from './components/RiskCard'
@@ -12,11 +14,13 @@ import { LoadingScreen, ErrorScreen } from './components/StatusScreens'
  * - それ以外は下部タブの view（home/card/map）で切替。
  *   card/map は risk 確定時のみ到達（storeがviewを管理）。
  * - risk 確定後は下部タブバーを表示し、カード⇄地図⇄ホームを行き来できる。
+ * - オフライン時はヘッダー直下に控えめなバナーを常設表示。
  */
 function App() {
   const uiStatus = usePlanStore((s) => s.uiStatus)
   const view = usePlanStore((s) => s.view)
   const risk = usePlanStore((s) => s.risk)
+  const online = useOnlineStatus()
 
   const isLocating = uiStatus.kind === 'locating'
   const isError = uiStatus.kind === 'error'
@@ -27,6 +31,16 @@ function App() {
   return (
     <div className={`stage${showTabBar ? ' has-tabbar' : ''}`}>
       <Header />
+
+      {/* オフラインバナー（controlled by navigator.onLine）。控えめ・常設。 */}
+      {!online && (
+        <div className="offline-banner" role="status" aria-live="polite">
+          <span className="i" aria-hidden="true">
+            ⚑
+          </span>
+          <span>{STRINGS.offline.banner}</span>
+        </div>
+      )}
 
       {isLocating && <LoadingScreen />}
       {isError && <ErrorScreen code={uiStatus.code} />}
