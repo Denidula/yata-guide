@@ -1,41 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <!--
-    YATA GUIDE アプリアイコン（マスカブル対応の暫定版）。
-    ネイビー#0B2545の角丸地に、白い八咫烏（やたがらす）モチーフの鳥シルエット＋「YATA」。
-    重要要素はマスカブル安全領域（中央80%＝一辺約410px, 余白51px）内に収める。
-    R1で差し替え可能な暫定クオリティ。
-  -->
-  <rect width="512" height="512" rx="112" fill="#0B2545"/>
-  <!-- 八咫烏シルエット（横向きに飛ぶ烏を簡略化）。白。中央やや上に配置。 -->
-  <g fill="#FFFFFF" transform="translate(256 214)">
-    <!-- 胴体＋頭 -->
-    <path d="M-96 8
-             C-96 -34 -60 -60 -18 -60
-             C6 -60 26 -49 40 -32
-             L96 -44
-             L70 -12
-             L104 4
-             L64 12
-             C58 40 30 58 -8 58
-             C-56 58 -96 38 -96 8 Z"/>
-    <!-- 翼（上に跳ね上げる一枚） -->
-    <path d="M-28 -44
-             C-8 -84 30 -104 74 -104
-             C48 -84 34 -60 30 -40
-             C8 -52 -12 -52 -28 -44 Z"/>
-    <!-- 尾羽 -->
-    <path d="M-96 8 L-140 -8 L-116 12 L-140 30 L-96 22 Z"/>
-    <!-- 脚（三本足＝八咫烏の象徴。簡略に3本） -->
-    <g stroke="#FFFFFF" stroke-width="7" stroke-linecap="round">
-      <line x1="-24" y1="56" x2="-40" y2="92"/>
-      <line x1="0" y1="58" x2="0" y2="96"/>
-      <line x1="24" y1="56" x2="40" y2="92"/>
-    </g>
-    <!-- 目（地の色で抜く） -->
-    <circle cx="6" cy="-30" r="6" fill="#0B2545"/>
-  </g>
-  <!-- ワードマーク -->
-  <text x="256" y="418" text-anchor="middle"
-        font-family="Inter, 'Segoe UI', Arial, sans-serif"
-        font-size="92" font-weight="800" letter-spacing="6" fill="#FFFFFF">YATA</text>
+  <!-- YATA GUIDE アプリアイコン（R1）：デジタル庁ブルー地に白い八咫烏。PNGは gen-icons.mjs 生成。 -->
+  <rect width="512" height="512" rx="112" fill="#0017C1"/>
+  <image x="90" y="90" width="332" height="332" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAYAAADimHc4AAAACXBIWXMAAAPoAAAD6AG1e1JrAAAELElEQVR4nO1cQYRVURg+MiRt0iJtxhiRJDJGIsmQJG2StMtskkSLxEjajKRNi9mMtIi0aJMkkpFhJJGkTUZiJLNJ0iYZkXz5OZfb7b777nv33POdO///8S3ee/fd+53vu/+555177nMAnBE0D8x8cE9ACwAWgGObYBUAvhHWBUEn6QKgnHQBUE66ACgnXQCUky4AykkXAOWkC4By0gVAOekCoJx0AVBOugB0m4IRCwA08wVWAeCZbwEgrvGbC+ZbAIhn/uUS8+9bF4ToXU6ws1/I6D+7xEsV5lsAaM/4PX2MD2K+VQD+M2Qc9XDTAkDQM/4w6mM15LHZfawjcx6D4VdoDWwDHIEnMRze9djfNwsAfU3f67uOYTHdJ0irAJSb8KiB6b3M3Vj4/IEFgH8M2gBgLYDxk4X9bgLws0ZASV4DZA5lqaRP3Rb4OJ8CGD9V2Oexim0fdiGA7zUa7RryQEPTf/szPNvfFgCvIugOHoDcnLgC4HOJ2Od9GrNzyGPKj6JhcTe3nzEAbwf4bhDPQhm/v6bg7X22Od7yOD7DawCzDS7SwU7aEDt5X1P0n5rbXa153HOIjy+Be4zGARzxws56Qx4D+AjgR8Nx93Kf40p3ERtHQ5sfqgLylBHEs4CNvtbjODExW9HeydQCyHNrw4a/KNnnKOLhVI1rz5uUA8goI41BMNdjPxJI27hQ0Y6Zku1dFwIQ3kN6WPFD5pEe1xi5G/ah4vuTXQpAmBJWASx4yqAhZKUkG4DMSK4HTIX0JWYAqVXBMAjuSWqrDFLFWFuexA6gS1UwF8MPRgBNJs/awrLXNRHbD0YArCpYA3DdTzWz2p1MADL1nALW/NTJvJ/2OO8549/L3xNYVwEIb6M7GF+PAbghfwTFRqsesANwPe6ehYDcgXva4PsHY7Sfbb4bcsKuLpZyx5D5/CcVKyZkZvNM7LazjXc57kB7uJFA+5IPwHneaTGIurc7VQfgIoySTiTQvuQDcJ77AHxtKQhZZmgBoL4JuwAsBg5BujyrAPBnV60LQjMTQlSGXQPQ3IQmWIwdAvsC61qiTKxVoWqoKyu5LQCEGT1VQba5VfK+jLgsAIQxYaJGCGULiy0AhDNhukYIxWmQRv8BNAjZfbWLxJcVAcz7bWQpYobdFgCCh9CvCvKPOElFWAUg3t8QLBSCkgf9LACEN0Eeqs5QHKpm2zT+D6BByO6bHYH5xVbycF6GUYYethmOQHl6J39vIMNFCwBRFwmvFAKgzIqyz0ZHYr7fl6Xm8L+KLQDEDyB7fdoCQPT1qfkAKNXI7gociYf8ssPstTyqZAEg/mwp+0RQWwEuFdIFQDnpAqCcdAFQTroAKCddAJSTLgDKSRcA5aQLgHLSBUA56QKgnHQBUE66ACgnXQCUky4AykkXAOWkC4By0gVAOekCoJx/AYlBzl5wJM8wAAAAAElFTkSuQmCC"/>
 </svg>
