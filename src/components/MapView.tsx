@@ -3,6 +3,7 @@ import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Protocol } from 'pmtiles'
 import { usePlanStore } from '../store/usePlanStore'
+import { Icon } from './Icon'
 import {
   STRINGS,
   TILES_BASE_URL,
@@ -109,8 +110,8 @@ function rankColorExpression(prop: string): maplibregl.ExpressionSpecification {
 
 /** 避難場所ピンの色（緑）。GeoJSONソースのfeatureプロパティに依存しない固定色。 */
 const AREA_COLOR = '#0f7a4d'
-/** 避難所ピンの色（青）。 */
-const CENTER_COLOR = '#1266c7'
+/** 避難所ピンの色（青）。R1: 避難所は #0B4F9E。 */
+const CENTER_COLOR = '#0b4f9e'
 
 /** HTMLエスケープ（ポップアップの施設名・住所に外部データを埋め込むため）。 */
 function esc(s: string): string {
@@ -296,8 +297,8 @@ export function MapView() {
       const el = document.createElement('div')
       el.className = 'home-pin'
       el.setAttribute('aria-label', 'わが家の位置')
-      el.innerHTML = '<span aria-hidden="true">🏠</span>'
-      homeMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      el.innerHTML = '<span class="dot" aria-hidden="true"></span><span class="tag">自宅</span>'
+      homeMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([c.lng, c.lat])
         .addTo(map)
     }
@@ -355,8 +356,8 @@ export function MapView() {
       const el = document.createElement('div')
       el.className = 'home-pin'
       el.setAttribute('aria-label', 'わが家の位置')
-      el.innerHTML = '<span aria-hidden="true">🏠</span>'
-      homeMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+      el.innerHTML = '<span class="dot" aria-hidden="true"></span><span class="tag">自宅</span>'
+      homeMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([coords.lng, coords.lat])
         .addTo(map)
     }
@@ -714,40 +715,41 @@ export function MapView() {
     openFacilityPopup(f, [f.lng, f.lat])
   }
 
+  /** 現在地（わが家）に地図を戻すFAB。 */
+  function flyToHome() {
+    const map = mapRef.current
+    if (!map || !coords) return
+    map.flyTo({ center: [coords.lng, coords.lat], zoom: HOME_ZOOM, duration: 800 })
+  }
+
   return (
     <section aria-label="避難先マップ" className="map-screen">
-      <div className="section-label">
-        {STRINGS.map.sectionPrefix}
-        {risk ? ` ／ ${risk.ward} ${risk.town} 周辺` : ''}
+      {/* 住所コンテキスト（R1：地図画面は「◯◯の避難先」を明示） */}
+      <div className="map-context">
+        {risk ? `${risk.ward} ${risk.town} の避難先` : STRINGS.map.sectionPrefix}
+      </div>
+
+      {/* 災害種別タブ（横スクロール・地図の上に独立配置） */}
+      <div className="hazard-tabs" role="tablist" aria-label="災害の種類">
+        {HAZARDS.map((h) => (
+          <button
+            key={h.key}
+            role="tab"
+            aria-selected={hazard === h.key}
+            onClick={() => setHazard(h.key)}
+          >
+            {h.label}
+          </button>
+        ))}
       </div>
 
       <div className="map-wrap-live">
         <div ref={mapContainerRef} className="map-canvas-live" />
 
-        {/* 災害種別タブ（排他切替・44pxタップターゲット） */}
-        <div className="hazard-tabs" role="tablist" aria-label="災害種別">
-          {HAZARDS.map((h) => (
-            <button
-              key={h.key}
-              role="tab"
-              aria-selected={hazard === h.key}
-              aria-pressed={hazard === h.key}
-              onClick={() => setHazard(h.key)}
-            >
-              <span className="ic" aria-hidden="true">
-                {h.icon}
-              </span>
-              {h.label}
-            </button>
-          ))}
-        </div>
-
         {/* グレースフルデグレード・バナー（配信不可時のみ） */}
         {layerState === 'degraded' && (
           <div className="map-banner" role="status">
-            <span className="i" aria-hidden="true">
-              ⓘ
-            </span>
+            <Icon name="info" size={15} />
             <span>{STRINGS.map.degradeBanner}</span>
           </div>
         )}
@@ -755,77 +757,81 @@ export function MapView() {
         {/* 津波（島しょ部データのみ）を本土で見たときの注記 */}
         {showTsunamiMainlandNote && (
           <div className="map-banner soft" role="status">
-            <span className="i" aria-hidden="true">
-              ⓘ
-            </span>
+            <Icon name="info" size={15} />
             <span>{STRINGS.map.tsunamiMainlandNote}</span>
           </div>
         )}
 
-        {/* 凡例（表示中レイヤーに応じて内容を切替） */}
-        <MapLegend hazard={hazard} label={activeHaz.label} />
+        {/* 現在地（わが家）に戻るFAB */}
+        {coords && (
+          <button className="map-fab" aria-label="現在地に戻る" onClick={flyToHome}>
+            <Icon name="location-current" size={22} />
+          </button>
+        )}
       </div>
+
+      {/* 凡例（常設・地図下） */}
+      <MapLegend hazard={hazard} label={activeHaz.label} />
 
       {/* 最寄り避難先リスト（現在タブの避難場所3件＋最寄り避難所1件） */}
       <div className="evac-list">
-        <div className="evac-list-h">{STRINGS.map.nearListTitle(activeHaz.label)}</div>
+        <h2 className="h-sec">
+          {STRINGS.map.nearListTitle(activeHaz.label)}
+          <span className="sub">近い順</span>
+        </h2>
         {nearAreas.length > 0 ? (
           <ul className="evac-items">
             {nearAreas.map((f, i) => (
               <li key={`${f.name}-${i}`}>
                 <button className="evac-item" onClick={() => handleListItemClick(f)}>
-                  <span className="ev-rank area" aria-hidden="true">
-                    {i + 1}
+                  <span className="ev-mark area" aria-hidden="true">
+                    ▲
                   </span>
                   <span className="ev-body">
                     <span className="ev-name">{f.name}</span>
-                    <span className="ev-meta">
-                      <span className="ev-tag area">{STRINGS.map.evacAreaWord}</span>
-                      {STRINGS.map.distFmt(f.distanceM, f.walkMin)}
-                    </span>
+                    <span className="ev-kind">{STRINGS.map.evacAreaWord}（一時的に逃げる）</span>
                   </span>
-                  <span className="ev-go" aria-hidden="true">
-                    ›
+                  <span className="ev-dist-wrap">
+                    <span className="ev-dist area">{STRINGS.map.distFmt(f.distanceM, f.walkMin).split('・')[0]}</span>
+                    <span className="ev-walk">{STRINGS.map.distFmt(f.distanceM, f.walkMin).split('・')[1]}</span>
                   </span>
+                  <Icon name="chevron-right" size={16} className="ev-go" />
                 </button>
               </li>
             ))}
           </ul>
         ) : (
           <div className="note-inline gray evac-empty">
-            <span className="i" aria-hidden="true">
-              ⓘ
-            </span>
+            <Icon name="info" size={15} />
             <span>{STRINGS.map.nearListEmpty(activeHaz.label)}</span>
           </div>
         )}
 
         {/* 参考：最寄りの避難所（生活避難）を1件だけ区別表示 */}
         {nearCenter && (
-          <>
-            <div className="evac-list-h sub">{STRINGS.map.nearListCenterTitle}</div>
-            <ul className="evac-items">
-              <li>
-                <button className="evac-item" onClick={() => handleListItemClick(nearCenter)}>
-                  <span className="ev-rank center" aria-hidden="true">
-                    宿
-                  </span>
-                  <span className="ev-body">
-                    <span className="ev-name">{nearCenter.name}</span>
-                    <span className="ev-meta">
-                      <span className="ev-tag center">{STRINGS.map.evacCenterWord}</span>
-                      {STRINGS.map.distFmt(nearCenter.distanceM, nearCenter.walkMin)}
-                    </span>
-                  </span>
-                  <span className="ev-go" aria-hidden="true">
-                    ›
-                  </span>
-                </button>
-              </li>
-            </ul>
-          </>
+          <ul className="evac-items">
+            <li>
+              <button className="evac-item" onClick={() => handleListItemClick(nearCenter)}>
+                <span className="ev-mark center" aria-hidden="true">
+                  ■
+                </span>
+                <span className="ev-body">
+                  <span className="ev-name">{nearCenter.name}</span>
+                  <span className="ev-kind">{STRINGS.map.evacCenterWord}（生活する）</span>
+                </span>
+                <span className="ev-dist-wrap">
+                  <span className="ev-dist center">{STRINGS.map.distFmt(nearCenter.distanceM, nearCenter.walkMin).split('・')[0]}</span>
+                  <span className="ev-walk">{STRINGS.map.distFmt(nearCenter.distanceM, nearCenter.walkMin).split('・')[1]}</span>
+                </span>
+                <Icon name="chevron-right" size={16} className="ev-go" />
+              </button>
+            </li>
+          </ul>
         )}
-        <p className="evac-walknote">{STRINGS.map.walkNote}</p>
+        <p className="evac-walknote">
+          <Icon name="info" size={15} />
+          <span>{STRINGS.map.walkNote}</span>
+        </p>
       </div>
 
       {/* 出典表記 */}
@@ -836,51 +842,53 @@ export function MapView() {
   )
 }
 
-/** 表示中の災害種別に応じた凡例。避難先ピン（避難場所＝緑／避難所＝青）も常時掲載。 */
+/**
+ * 表示中の災害種別に応じた凡例（R1：地図下の常設バー）。
+ * 避難先ピン（避難場所＝緑丸▲／避難所＝青四角■／自宅＝青白縁丸）を常時掲載し、
+ * ハザードのランク／深さ凡例も同バー内に折り返し掲載する。
+ * 「空欄＝情報なし」の注記も維持（色覚配慮・凡例注記）。
+ */
 function MapLegend({ hazard, label }: { hazard: HazardKey; label: string }) {
   const isQuake = hazard === 'quake'
   return (
     <div className="map-legend" aria-label={`凡例：${label}`}>
-      <div className="lg-t">
-        {STRINGS.map.legendTitle}・{label}
-      </div>
-      {isQuake ? (
-        <>
-          <div className="lg-sub">{STRINGS.map.quakeLegendTitle}</div>
-          {[5, 4, 3, 2, 1].map((r) => (
-            <div className="lg-row" key={r}>
-              <span className="sw" style={{ background: RANK_COLOR[r] }} />
-              ランク{r}
-              {r === 5 ? '（高）' : r === 1 ? '（低）' : ''}
-            </div>
-          ))}
-        </>
-      ) : (
-        <>
-          <div className="lg-sub">{STRINGS.map.depthLegendTitle}</div>
-          {DEPTH_LEGEND.map((d) => (
-            <div className="lg-row" key={d.label}>
-              <span className="sw" style={{ background: d.color }} />
-              {d.label}
-            </div>
-          ))}
-        </>
-      )}
-      {/* 避難先ピン凡例 */}
-      <div className="lg-sub evac">避難先</div>
-      <div className="lg-row">
-        <span className="sw dot" style={{ background: '#0f7a4d' }} />
+      {/* 避難先ピン凡例（形状でも符号化） */}
+      <span className="lg-row">
+        <span className="sw area" style={{ background: AREA_COLOR }} aria-hidden="true" />▲{' '}
         {STRINGS.map.legendEvacArea}
-      </div>
-      <div className="lg-row">
-        <span className="sw dot" style={{ background: '#1266c7' }} />
+      </span>
+      <span className="lg-row">
+        <span className="sw center" style={{ background: CENTER_COLOR }} aria-hidden="true" />■{' '}
         {STRINGS.map.legendEvacCenter}
-      </div>
-      <div className="lg-row you">
-        <span className="sw pin-sw" />
+      </span>
+      <span className="lg-row">
+        <span className="sw you" aria-hidden="true" />
         {STRINGS.map.legendYou}
-      </div>
-      <div className="lg-note">{STRINGS.map.legendNoData}</div>
+      </span>
+      {/* ハザードのランク／深さ凡例 */}
+      {isQuake ? (
+        <span className="lg-full">
+          <b>{STRINGS.map.quakeLegendTitle}：</b>
+          {[1, 2, 3, 4, 5].map((r) => (
+            <span key={r} className="lg-row" style={{ marginLeft: r === 1 ? 6 : 10 }}>
+              <span className="sw center" style={{ background: RANK_COLOR[r] }} aria-hidden="true" />
+              {r}
+              {r === 5 ? '（高）' : r === 1 ? '（低）' : ''}
+            </span>
+          ))}
+        </span>
+      ) : (
+        <span className="lg-full">
+          <b>{STRINGS.map.depthLegendTitle}：</b>
+          {DEPTH_LEGEND.map((d) => (
+            <span key={d.label} className="lg-row" style={{ marginLeft: 8 }}>
+              <span className="sw center" style={{ background: d.color }} aria-hidden="true" />
+              {d.label}
+            </span>
+          ))}
+        </span>
+      )}
+      <span className="lg-full">{STRINGS.map.legendNoData}</span>
     </div>
   )
 }

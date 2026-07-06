@@ -1,10 +1,11 @@
 import { usePlanStore } from '../store/usePlanStore'
 import { STRINGS } from '../lib/constants'
+import { Icon } from './Icon'
 
 /**
- * 画面下部の3タブ（ホーム／危険度カード／地図）。
+ * 画面下部の3タブ（ホーム／危険度カード／地図・R1）。
  * カード・地図はrisk確定時のみ有効（未確定時はdisabledでホームへ誘導）。
- * ワイヤーフレームのtabbar準拠。タップターゲット56px。
+ * SVGラインアイコン＋現在タブは上バー強調（inset box-shadow）。タップターゲット58px。
  */
 export function TabBar() {
   const view = usePlanStore((s) => s.view)
@@ -21,9 +22,7 @@ export function TabBar() {
           backToHome()
         }}
       >
-        <span className="ic" aria-hidden="true">
-          🏠
-        </span>
+        <Icon name="home" size={20} />
         {STRINGS.tabs.home}
       </button>
       <button
@@ -31,9 +30,7 @@ export function TabBar() {
         disabled={!hasResult}
         onClick={() => hasResult && setView('card')}
       >
-        <span className="ic" aria-hidden="true">
-          🏚️
-        </span>
+        <Icon name="gauge" size={20} />
         {STRINGS.tabs.card}
       </button>
       <button
@@ -41,9 +38,7 @@ export function TabBar() {
         disabled={!hasResult}
         onClick={() => hasResult && setView('map')}
       >
-        <span className="ic" aria-hidden="true">
-          🗺️
-        </span>
+        <Icon name="map" size={20} />
         {STRINGS.tabs.map}
       </button>
     </nav>

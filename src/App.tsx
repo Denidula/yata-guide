@@ -7,6 +7,7 @@ import { RiskCard } from './components/RiskCard'
 import { MapView } from './components/MapView'
 import { TabBar } from './components/TabBar'
 import { LoadingScreen, ErrorScreen } from './components/StatusScreens'
+import { Icon } from './components/Icon'
 
 /**
  * 画面ルーティング。
@@ -35,9 +36,7 @@ function App() {
       {/* オフラインバナー（controlled by navigator.onLine）。控えめ・常設。 */}
       {!online && (
         <div className="offline-banner" role="status" aria-live="polite">
-          <span className="i" aria-hidden="true">
-            ⚑
-          </span>
+          <Icon name="offline" size={16} />
           <span>{STRINGS.offline.banner}</span>
         </div>
       )}

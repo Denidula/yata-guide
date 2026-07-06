@@ -1,36 +1,31 @@
-import { STRINGS } from '../lib/constants'
+import logoMini from '../assets/logo-mini-header.png'
+import { Icon } from './Icon'
 
 /**
- * 全画面共通ヘッダー。ロゴ＋タイトル＋多言語切替プレースホルダ（表示のみ、Phase2でi18next）。
+ * 全画面共通ヘッダー（R1）。八咫烏ロゴ＋タイトル＋多言語切替ボタン（表示のみ、Phase2でi18next）。
+ * 白地・下罫線・sticky。
  */
 export function Header() {
   return (
     <header className="appbar">
-      <div className="logo" aria-hidden="true">
-        {STRINGS.app.logo}
-      </div>
+      <img className="logo" src={logoMini} alt="" aria-hidden="true" />
       <div className="title">
-        {STRINGS.app.name}
-        <small>{STRINGS.app.tagline}</small>
+        <div className="name">ヤタガラス</div>
+        <small>わが家の避難計画 東京都版（デモ）</small>
       </div>
       {/* 多言語切替UI（プレースホルダ。実装はPhase2 / i18next） */}
-      <nav className="lang" aria-label="言語切替（実装予定）">
-        <button aria-pressed="true" title="日本語">
-          JA
-        </button>
-        <button aria-pressed="false" title="やさしい日本語">
-          やさ
-        </button>
-        <button aria-pressed="false" title="English">
-          EN
-        </button>
-        <button aria-pressed="false" title="中文">
-          中
-        </button>
-        <button aria-pressed="false" title="한국어">
-          한
-        </button>
-      </nav>
+      <button
+        className="lang-btn"
+        aria-haspopup="listbox"
+        aria-label="言語を切り替え（実装予定）"
+        title="言語切替（実装予定）"
+      >
+        <Icon name="globe-language" size={16} />
+        Language
+        <span className="caret" aria-hidden="true">
+          ▾
+        </span>
+      </button>
     </header>
   )
 }

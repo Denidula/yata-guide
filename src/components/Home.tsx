@@ -3,10 +3,19 @@ import { usePlanStore } from '../store/usePlanStore'
 import { preloadPip } from '../lib/pip'
 import { loadLookup } from '../lib/risk'
 import { preloadFacilities } from '../lib/shelters'
-import { STRINGS, DEMO_CHIPS, RANK_COLOR } from '../lib/constants'
+import {
+  STRINGS,
+  DEMO_CHIPS,
+  RANK_COLOR,
+  RANK_TEXT,
+  RANK_BORDER,
+  RANK_WORD,
+} from '../lib/constants'
+import { Icon } from './Icon'
 
 /**
- * ホーム／住所入力画面。
+ * ホーム／住所入力画面（R1）。
+ * 白地・左寄せリード＋入力フォーム＋デモ地点の縦積みリスト型chip。
  * 「住所入力→ボタン1回 / 現在地1回 / chip1回」で危険度カードへ到達する（3秒体験の核）。
  */
 export function Home() {
@@ -46,90 +55,87 @@ export function Home() {
   }
 
   return (
-    <section aria-label="ホーム・住所入力">
-      <div className="hero">
-        <p className="catch">
-          {STRINGS.home.catchLine1}
+    <section className="home" aria-label="ホーム・住所入力">
+      {/* リード */}
+      <div className="lead">
+        <h1>
+          住所を入れるだけ
           <br />
-          <em>{STRINGS.home.catchEmphasis}</em>
-          {STRINGS.home.catchLine2}
-        </p>
+          <em>いざという時</em>の道がわかる
+        </h1>
         <p className="sub">{STRINGS.home.sub}</p>
+      </div>
 
-        <div className="searchcard">
-          <label htmlFor="addr">{STRINGS.home.addrLabel}</label>
-          <input
-            className="addr-input"
-            id="addr"
-            type="text"
-            inputMode="text"
-            autoComplete="off"
-            placeholder={STRINGS.home.addrPlaceholder}
-            value={addressInput}
-            onChange={(e) => setAddressInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submitAddress()
-            }}
-          />
-          <button className="btn big" style={{ marginTop: 10 }} onClick={submitAddress}>
-            <span aria-hidden="true">🔍</span> {STRINGS.home.searchBtn}
-          </button>
+      {/* 入力フォーム */}
+      <div className="searchform">
+        <label htmlFor="addr">
+          住所<span className="hint">丁目まで入力</span>
+        </label>
+        <input
+          className="addr-input"
+          id="addr"
+          type="text"
+          inputMode="text"
+          autoComplete="off"
+          placeholder={STRINGS.home.addrPlaceholder}
+          value={addressInput}
+          onChange={(e) => setAddressInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') submitAddress()
+          }}
+        />
+        <button className="btn big" onClick={submitAddress}>
+          <Icon name="search" size={18} /> {STRINGS.home.searchBtn}
+        </button>
 
-          <div className="or-row">{STRINGS.home.or}</div>
-
-          <button className="btn big locbtn" onClick={useCurrentLocation}>
-            <span aria-hidden="true">📍</span> {STRINGS.home.locBtn}
-          </button>
-          {/* 位置情報の常設注記（拒否検知後ではなく最初から表示） */}
-          <div className="note-inline gray geo-hint">
-            <span className="i" aria-hidden="true">
-              ⓘ
-            </span>
-            <span>{STRINGS.home.geoHint}</span>
-          </div>
+        <div className="or-row" aria-hidden="true">
+          {STRINGS.home.or}
         </div>
 
-        {/* デモ地点chip（実データをジオコーディング→PIP→判定して遷移） */}
-        <div className="samples">
-          <div className="h-sec">{STRINGS.home.samplesLabel}</div>
-          <div className="chip-row">
-            {DEMO_CHIPS.map((chip) => (
-              <button
-                key={chip.key}
-                className="chip"
-                onClick={() => void resolveByAddress(chip.address, 'demo')}
-              >
-                <span className="rk" style={{ background: RANK_COLOR[chip.rank] }}>
-                  総合{chip.rank}
-                </span>{' '}
-                {chip.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <button className="btn big outline" onClick={useCurrentLocation}>
+          <Icon name="location-current" size={18} /> {STRINGS.home.locBtn}
+        </button>
 
-        <div className="feat3">
-          <div className="f">
-            <div className="ic" aria-hidden="true">
-              🏚️
-            </div>
-            <div className="t">{STRINGS.home.feat1}</div>
-          </div>
-          <div className="f">
-            <div className="ic" aria-hidden="true">
-              🗺️
-            </div>
-            <div className="t">{STRINGS.home.feat2}</div>
-          </div>
-          <div className="f">
-            <div className="ic" aria-hidden="true">
-              ✈️
-            </div>
-            <div className="t">{STRINGS.home.feat3}</div>
-          </div>
+        {/* 位置情報の常設注記（拒否検知後ではなく最初から表示） */}
+        <div className="note-inline gray geo-hint">
+          <Icon name="info" size={15} />
+          <span>{STRINGS.home.geoHint}</span>
         </div>
       </div>
 
+      {/* デモ地点chip（実データをジオコーディング→PIP→判定して遷移） */}
+      <div className="samples">
+        <h2 className="h-sec">
+          デモ地点で試す<span className="sub">実データで判定</span>
+        </h2>
+        <div className="chip-list">
+          {DEMO_CHIPS.map((chip) => (
+            <button
+              key={chip.key}
+              className="chip"
+              onClick={() => void resolveByAddress(chip.address, 'demo')}
+            >
+              <span
+                className="rk"
+                style={{
+                  background: RANK_COLOR[chip.rank],
+                  color: RANK_TEXT[chip.rank],
+                  borderColor: RANK_BORDER[chip.rank],
+                }}
+              >
+                {chip.rank}
+              </span>
+              <span className="chip-body">
+                <span className="chip-label">{chip.label}</span>
+                <span className="chip-word">総合危険度 {RANK_WORD[chip.rank]}</span>
+              </span>
+              <Icon name="chevron-right" size={16} className="chevron" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 出典・免責 */}
       <div className="disclaimer">
         <p className="src">
           <b>出典：</b>

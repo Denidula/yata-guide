@@ -27,11 +27,11 @@ export function ErrorScreen({ code }: { code: ErrorCode }) {
     <div className="error-box" aria-live="assertive">
       <div className="note-inline error">
         <span className="i" aria-hidden="true">
-          ⚠
+          ！
         </span>
         <span>{ERROR_MESSAGE[code]}</span>
       </div>
-      <button className="btn" onClick={backToHome}>
+      <button className="btn big" onClick={backToHome}>
         住所入力にもどる
       </button>
     </div>
