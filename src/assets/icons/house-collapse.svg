@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+  <mask id="hc-crack" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+    <rect width="24" height="24" fill="#fff"></rect>
+    <path d="M13.2 3.5l-3 5.3 3.4 3-3 4.4 1.5 5.4" fill="none" stroke="#000" stroke-width="2" stroke-linejoin="round"></path>
+  </mask>
+  <path d="M12 2.7 2.8 10.3V21h18.4V10.3Z" mask="url(#hc-crack)"></path>
+</svg>

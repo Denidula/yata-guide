@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+  <path fill-rule="evenodd" d="M12 5a7 7 0 1 0 0 14 7 7 0 1 0 0-14Zm0 2.6a4.4 4.4 0 1 1 0 8.8 4.4 4.4 0 1 1 0-8.8Z"></path>
+  <circle cx="12" cy="12" r="2.7"></circle>
+  <rect x="11" y="1.5" width="2" height="4" rx="1"></rect>
+  <rect x="11" y="18.5" width="2" height="4" rx="1"></rect>
+  <rect x="1.5" y="11" width="4" height="2" rx="1"></rect>
+  <rect x="18.5" y="11" width="4" height="2" rx="1"></rect>
+</svg>

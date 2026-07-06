@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+  <mask id="gl-grid" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+    <rect width="24" height="24" fill="#fff"></rect>
+    <g fill="none" stroke="#000" stroke-width="2">
+      <path d="M2 12h20"></path>
+      <path d="M12 2c3 2.7 4.8 6.2 4.8 10S15 19.3 12 22c-3-2.7-4.8-6.2-4.8-10S9 4.7 12 2Z"></path>
+    </g>
+  </mask>
+  <circle cx="12" cy="12" r="10" fill="currentColor" mask="url(#gl-grid)"></circle>
+</svg>
