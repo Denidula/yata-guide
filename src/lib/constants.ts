@@ -302,7 +302,8 @@ export const STRINGS = {
 } as const
 
 /**
- * ホームのデモchip。demo_locations.md の4地点。
+ * ホームのデモchip。総合ランク 5 / 3 / 1 を1つずつ（3地点）。
+ * ゲージが 5/5/5 → 3/3/3 → 1/1/1 と階段状に変わるデモになる。
  * value=ジオコーディングに投げる住所文字列、rank=chip上のバッジ表示用。
  */
 export interface DemoChip {
@@ -316,7 +317,6 @@ export interface DemoChip {
 
 export const DEMO_CHIPS: DemoChip[] = [
   { key: 'arakawa6', label: '荒川区荒川6丁目', address: '東京都荒川区荒川6丁目', rank: 5 },
-  { key: 'oshiage3', label: '墨田区押上3丁目', address: '東京都墨田区押上3丁目', rank: 5 },
-  { key: 'nishishinjuku2', label: '新宿区西新宿2丁目', address: '東京都新宿区西新宿2丁目', rank: 1 },
+  { key: 'nakano5', label: '中野区中野5丁目', address: '東京都中野区中野5丁目', rank: 3 },
   { key: 'chiyoda', label: '千代田区（皇居）', address: '東京都千代田区千代田', rank: 1 },
 ]
