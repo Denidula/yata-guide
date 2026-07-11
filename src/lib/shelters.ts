@@ -6,13 +6,18 @@
  *      name, ward, address, 災害種別フラグ8種（bool）, バリアフリー4種（true/null）
  *  - /data/evacuation_centers.geojson … 避難所 2,560件（Point）
  *      name, ward, address, バリアフリー4種（true/null）
+ *  - /data/fukushi_hinanjo.geojson    … 福祉避難所（二次避難所）938件・24自治体（23区＋清瀬市、Point）
+ *      muni, name, address, category, source（各区市の公表資料を加工）
+ *  - /data/fukushi_hinanjo_coverage.json … 福祉避難所データを公開済みの自治体リスト（covered）
  *
  * 設計（w3_status.md 準拠）:
  *  - 避難場所は「今まさに逃げる先」として災害種別フラグでフィルタ。
  *  - 避難所は「生活避難先」。区別して1件だけ最寄りを併記。
  *  - 徒歩分 = ceil(直線距離m / 80)。表記は「約X分（直線距離）」。
  *  - 距離は Haversine（大圏距離）で自前計算（@turf/distance は未導入。新依存を増やさない）。
- *  - 全件（2,251 / 2,560）を線形走査（数ms）。空間索引は不要。
+ *  - 全件（2,251 / 2,560 / 938）を線形走査（数ms）。空間索引は不要。
+ *  - 福祉避難所は「開設後に自治体から案内される二次避難先」。運営が自治体単位のため、
+ *    検索は判定地点と同一自治体内に限定し、未公開自治体は not_covered を返す（正直路線）。
  */
 
 import type { HazardKey } from './constants'
@@ -223,16 +228,17 @@ export function walkMinutes(distanceM: number): number {
 
 /**
  * わが家座標に近い順にN件を返す（距離・徒歩分を付与）。
+ * 座標を持つ施設ならジェネリックに使える（Facility／FukushiFacility共用）。
  * @param origin わが家座標 [lng, lat]
  * @param facilities 対象施設（フィルタ済みでよい）
  * @param n 件数
  */
-export function nearest(
+export function nearest<T extends { lng: number; lat: number }>(
   origin: { lng: number; lat: number },
-  facilities: Facility[],
+  facilities: T[],
   n: number,
-): FacilityWithDistance[] {
-  const scored: FacilityWithDistance[] = facilities.map((f) => {
+): Array<T & { distanceM: number; walkMin: number }> {
+  const scored = facilities.map((f) => {
     const distanceM = haversineM(origin.lng, origin.lat, f.lng, f.lat)
     return { ...f, distanceM, walkMin: walkMinutes(distanceM) }
   })
@@ -241,10 +247,10 @@ export function nearest(
 }
 
 /** 単一の最寄り（無ければ null）。 */
-export function nearestOne(
+export function nearestOne<T extends { lng: number; lat: number }>(
   origin: { lng: number; lat: number },
-  facilities: Facility[],
-): FacilityWithDistance | null {
+  facilities: T[],
+): (T & { distanceM: number; walkMin: number }) | null {
   return nearest(origin, facilities, 1)[0] ?? null
 }
 
@@ -257,4 +263,142 @@ export function activeBarrierFree(bf: BarrierFree): Array<{ key: keyof BarrierFr
     { key: 'slope', label: 'スロープ', icon: '♿' },
   ]
   return defs.filter((d) => bf[d.key] === true)
+}
+
+// ─────────────────────────────────────────────────────────────
+// 福祉避難所（二次避難所）
+// ─────────────────────────────────────────────────────────────
+
+/** 福祉避難所GeoJSONのURL。 */
+export const FUKUSHI_URL = '/data/fukushi_hinanjo.geojson'
+/** 福祉避難所カバレッジ（データ公開済み自治体リスト）のURL。 */
+export const FUKUSHI_COVERAGE_URL = '/data/fukushi_hinanjo_coverage.json'
+
+/**
+ * 福祉避難所（二次避難所）。要配慮者のために自治体が災害後に開設する避難先で、
+ * 直接向かう場所ではない（表示時は必ず STRINGS.fukushi.roleNote の注記を添える）。
+ */
+export interface FukushiFacility {
+  kind: 'fukushi'
+  name: string
+  /** 区市町村名（例: 世田谷区）。chomoku_lookup の ward と同一形式 */
+  muni: string
+  /** 自治体内の住所（区市町村名を含まない場合がある） */
+  address: string
+  /** 自治体公表の施設区分（例: 福祉避難所（高齢者）／二次避難所。自治体ごとに呼称が異なる） */
+  category: string
+  /** データの出所（自治体名＋公表資料名） */
+  source: string
+  lng: number
+  lat: number
+}
+
+/** 距離付き福祉避難所（最寄り結果用）。 */
+export type FukushiWithDistance = FukushiFacility & { distanceM: number; walkMin: number }
+
+/** GeoJSONの生プロパティ（福祉避難所）。 */
+type FukushiProps = {
+  muni: string
+  name: string
+  address: string
+  category: string
+  source: string
+  updated: string | null
+}
+
+/** カバレッジJSONの形（covered以外の集計キーはアプリでは使わない）。 */
+type FukushiCoverage = { covered: string[] }
+
+let fukushiCache: FukushiFacility[] | null = null
+let fukushiInflight: Promise<FukushiFacility[]> | null = null
+let coverageCache: string[] | null = null
+let coverageInflight: Promise<string[]> | null = null
+
+/** 福祉避難所（938件）を取得＋メモリキャッシュ。多重fetch防止。 */
+export async function loadFukushi(): Promise<FukushiFacility[]> {
+  if (fukushiCache) return fukushiCache
+  if (fukushiInflight) return fukushiInflight
+  fukushiInflight = fetch(FUKUSHI_URL)
+    .then((res) => {
+      if (!res.ok) throw new Error(`fukushi geojson fetch failed: ${res.status}`)
+      return res.json() as Promise<FC<FukushiProps>>
+    })
+    .then((fc) => {
+      const out: FukushiFacility[] = []
+      for (const f of fc.features) {
+        if (!f.geometry || f.geometry.type !== 'Point') continue
+        const [lng, lat] = f.geometry.coordinates
+        if (typeof lng !== 'number' || typeof lat !== 'number') continue
+        const p = f.properties
+        out.push({
+          kind: 'fukushi',
+          name: p.name,
+          muni: p.muni,
+          address: p.address,
+          category: p.category,
+          source: p.source,
+          lng,
+          lat,
+        })
+      }
+      fukushiCache = out
+      fukushiInflight = null
+      return out
+    })
+    .catch((err) => {
+      fukushiInflight = null
+      throw err
+    })
+  return fukushiInflight
+}
+
+/** 福祉避難所データを公開済みの自治体名リスト（24自治体）を取得＋メモリキャッシュ。 */
+export async function loadFukushiCoverage(): Promise<string[]> {
+  if (coverageCache) return coverageCache
+  if (coverageInflight) return coverageInflight
+  coverageInflight = fetch(FUKUSHI_COVERAGE_URL)
+    .then((res) => {
+      if (!res.ok) throw new Error(`fukushi coverage fetch failed: ${res.status}`)
+      return res.json() as Promise<FukushiCoverage>
+    })
+    .then((c) => {
+      coverageCache = c.covered
+      coverageInflight = null
+      return c.covered
+    })
+    .catch((err) => {
+      coverageInflight = null
+      throw err
+    })
+  return coverageInflight
+}
+
+/**
+ * 福祉避難所の検索結果。
+ * covered     … 公開自治体。同一自治体内の最寄りN件（distanceM/walkMin付き）を返す
+ * not_covered … 未公開自治体。UIは「準備中」文言（STRINGS.fukushi.notCovered）を表示する
+ */
+export type FukushiSearchResult =
+  | { status: 'covered'; muni: string; nearest: FukushiWithDistance[] }
+  | { status: 'not_covered'; muni: string }
+
+/**
+ * 判定地点の自治体の福祉避難所を近い順にN件返す。
+ * 福祉避難所は自治体が自区市民のために開設するため、検索は同一自治体内に限定する
+ * （隣接区の施設を案内しない）。自治体が未公開なら not_covered。
+ * @param origin わが家座標
+ * @param muni 判定地点の区市町村名（RiskInfo.ward をそのまま渡す）
+ * @param n 件数（既定3）
+ */
+export async function findNearestFukushi(
+  origin: { lng: number; lat: number },
+  muni: string,
+  n = 3,
+): Promise<FukushiSearchResult> {
+  const [facilities, covered] = await Promise.all([loadFukushi(), loadFukushiCoverage()])
+  if (!covered.includes(muni)) {
+    return { status: 'not_covered', muni }
+  }
+  const inMuni = facilities.filter((f) => f.muni === muni)
+  return { status: 'covered', muni, nearest: nearest(origin, inMuni, n) }
 }
