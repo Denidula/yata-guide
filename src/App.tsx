@@ -4,6 +4,7 @@ import { STRINGS } from './lib/constants'
 import { Header } from './components/Header'
 import { Home } from './components/Home'
 import { RiskCard } from './components/RiskCard'
+import { PlanScreen } from './components/PlanScreen'
 import { MapView } from './components/MapView'
 import { TabBar } from './components/TabBar'
 import { LoadingScreen, ErrorScreen } from './components/StatusScreens'
@@ -12,8 +13,8 @@ import { Icon } from './components/Icon'
 /**
  * 画面ルーティング。
  * - 判定中(locating)/エラー(error)は最優先で専用画面。
- * - それ以外は下部タブの view（home/card/map）で切替。
- *   card/map は risk 確定時のみ到達（storeがviewを管理）。
+ * - それ以外は下部タブの view（home/card/plan/map）で切替。
+ *   card/plan/map は risk 確定時のみ到達（storeがviewを管理）。
  * - risk 確定後は下部タブバーを表示し、カード⇄地図⇄ホームを行き来できる。
  * - オフライン時はヘッダー直下に控えめなバナーを常設表示。
  */
@@ -47,6 +48,7 @@ function App() {
       {!isLocating && !isError && (
         <>
           {view === 'card' && risk && <RiskCard risk={risk} />}
+          {view === 'plan' && risk && <PlanScreen />}
           {view === 'map' && risk && <MapView />}
           {(view === 'home' || !risk) && <Home />}
         </>

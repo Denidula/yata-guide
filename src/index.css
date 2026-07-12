@@ -45,6 +45,8 @@
   --evac-area-ink: #0f5c3c;
   --evac-center: #0b4f9e; /* 避難所 */
   --evac-center-ink: #0b4f9e;
+  --evac-fukushi: #7a3e9d; /* 福祉避難所（二次避難所） */
+  --evac-fukushi-ink: #63307f;
 
   --radius: 10px; /* カード外枠 */
   --radius-sm: 8px; /* ボタン・入力・カード内 */
@@ -1411,4 +1413,359 @@ body {
   outline: 2px solid var(--ink);
   outline-offset: -3px;
   box-shadow: inset 0 0 0 5px var(--focus-ring);
+}
+
+/* ============================================================
+   P2-W1: 家族プロフィール入力（.profile）＋マイ避難計画カード（.plan-card）
+   既存トークン（--brand/--line/--radius/--tap 等）と .card/.es-*/.note-inline の
+   デザイン言語を踏襲。印刷（Phase3のPDF化）を意識して縦積み構成。
+   ============================================================ */
+
+/* --- プロフィール入力フォーム --- */
+.profile {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding-bottom: 24px;
+}
+.p-head {
+  margin: 18px 20px 0;
+}
+.p-block {
+  margin: 16px 20px 0;
+  border: 0;
+  padding: 0;
+  min-width: 0; /* fieldset の既定min-widthを解除 */
+}
+.p-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 0;
+}
+.p-label .hint {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+.p-sublabel {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-sub);
+}
+
+/* 世帯人数ステッパー */
+.stepper {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.step-btn {
+  width: var(--tap);
+  height: var(--tap);
+  flex: none;
+  border: 1px solid var(--brand);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--brand);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+}
+.step-btn:hover {
+  background: var(--brand-tint);
+}
+.step-btn:disabled {
+  border-color: var(--line);
+  color: var(--ink-mute);
+  background: var(--panel);
+  cursor: default;
+}
+.step-val {
+  min-width: 64px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--ink);
+}
+.step-val .unit {
+  margin-left: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-sub);
+}
+
+/* チェック項目（年齢層・要配慮属性・ペット。2列グリッド） */
+.check-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.check-grid.pet {
+  grid-template-columns: repeat(3, 1fr);
+}
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: var(--tap);
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--ink);
+  cursor: pointer;
+}
+.check-item input {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin: 0;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+.check-item.on {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+  color: var(--brand-ink);
+  font-weight: 700;
+}
+
+/* 集合場所の候補チップ（近隣の避難場所から選択） */
+.pick-chips {
+  margin-top: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.pick-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.pick-chip:hover {
+  border-color: var(--brand);
+}
+.pick-chip[aria-pressed='true'] {
+  border-color: var(--brand);
+  background: var(--brand-tint);
+  color: var(--brand-ink);
+  font-weight: 700;
+}
+.pick-chip .pc-name {
+  min-width: 0;
+}
+.pick-chip .pc-dist {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--evac-area-ink);
+}
+
+/* --- マイ避難計画カード --- */
+
+/* プロフィール要約タグ（この計画の前提） */
+.plan-tags {
+  margin: 12px 20px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ptag {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--brand-ink);
+  background: var(--brand-panel);
+  border: 1px solid var(--brand-panel-line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  line-height: 1.6;
+}
+
+/* 避難先の優先順表示（.es-* を拡張） */
+.es-sublabel {
+  margin-left: 7px;
+  font-weight: 400;
+  color: var(--ink-faint);
+}
+.es-dot.fukushi {
+  background: var(--evac-fukushi);
+}
+.es-dist.fukushi {
+  color: var(--evac-fukushi-ink);
+}
+.plan-center {
+  padding: 6px 0 0;
+}
+.plan-center + .plan-center {
+  margin-top: 6px;
+  border-top: 1px dashed var(--line-soft);
+}
+.bf-badge,
+.plain-badge {
+  display: inline-block;
+  vertical-align: 2px;
+  margin-left: 7px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-radius: var(--radius-xs);
+  padding: 1px 7px;
+  line-height: 1.6;
+}
+.bf-badge {
+  color: #fff;
+  background: var(--evac-center);
+}
+.plain-badge {
+  color: var(--ink-sub);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  font-weight: 500;
+}
+.es-bf {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  line-height: 1.5;
+}
+
+/* 福祉避難所の行 */
+.fk-item {
+  padding: 6px 0 0;
+}
+.fk-item + .fk-item {
+  margin-top: 6px;
+  border-top: 1px dashed var(--line-soft);
+}
+.fk-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.4;
+}
+.fk-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+.fk-cat {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+/* 持ち出し品チェックリスト */
+.kit,
+.meeting {
+  margin: 16px 20px 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 15px 16px;
+}
+.kit-sec {
+  margin-top: 12px;
+}
+.kit-sec-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-sub);
+}
+.kit-sec-title.attr {
+  color: var(--brand-ink);
+}
+.kit-count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-mute);
+}
+.kit-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+.kit-item + .kit-item {
+  border-top: 1px dashed var(--line-soft);
+}
+.kit-item label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: var(--tap);
+  padding: 8px 0;
+  cursor: pointer;
+}
+.kit-item input {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  margin: 2px 0 0;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+.kit-text {
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.45;
+}
+.kit-note {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  line-height: 1.5;
+}
+.kit-item input:checked + .kit-text {
+  color: var(--ink-mute);
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-mute);
+}
+.kit-item input:checked + .kit-text .kit-note {
+  text-decoration: none;
+}
+
+/* 家族の集合場所 */
+.meeting-body {
+  margin-top: 8px;
+}
+.meeting-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.meeting-text {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--ink-sub);
+  line-height: 1.6;
+}
+.meeting .es-none,
+.kit .es-none {
+  margin-top: 6px;
 }

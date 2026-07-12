@@ -36,9 +36,10 @@ export type LocationSource = 'input' | 'gps' | 'demo'
  * uiStatus（判定フローの状態）とは独立に、タブでの画面切替を表す。
  * - home: ホーム／住所入力（またはlocating/error）
  * - card: 危険度カード（risk確定時のみ到達可能）
+ * - plan: マイ避難計画（プロフィール入力＋計画カード。risk確定時のみ到達可能）
  * - map:  避難先マップ（risk確定時のみ到達可能）
  */
-export type AppView = 'home' | 'card' | 'map'
+export type AppView = 'home' | 'card' | 'plan' | 'map'
 
 export interface PlanState {
   /** 下部タブの表示ビュー */

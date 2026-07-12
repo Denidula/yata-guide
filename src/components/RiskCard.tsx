@@ -287,14 +287,13 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
         )}
       </div>
 
-      {/* 次アクション：地図で避難先を確認。計画づくりは準備中。 */}
+      {/* 次アクション：地図で避難先を確認／マイ避難計画をつくる（W1） */}
       <div className="next-cta">
         <button className="btn big" onClick={() => setView('map')}>
           <Icon name="map" size={18} /> {STRINGS.card.ctaMap}
         </button>
-        <button className="btn big" disabled title={STRINGS.card.ctaComingSoon}>
-          {STRINGS.card.ctaPlan}
-          <span className="badge-soon">準備中</span>
+        <button className="btn big" onClick={() => setView('plan')}>
+          <Icon name="clipboard-plan" size={18} /> {STRINGS.card.ctaPlan}
         </button>
       </div>
 

@@ -23,6 +23,7 @@ import offline from '../assets/icons/offline.svg?raw'
 import info from '../assets/icons/info.svg?raw'
 import chevronRight from '../assets/icons/chevron-right.svg?raw'
 import airplaneMode from '../assets/icons/airplane-mode.svg?raw'
+import clipboardPlan from '../assets/icons/clipboard-plan.svg?raw'
 
 export type IconName =
   | 'home'
@@ -40,6 +41,7 @@ export type IconName =
   | 'info'
   | 'chevron-right'
   | 'airplane-mode'
+  | 'clipboard-plan'
 
 const RAW: Record<IconName, string> = {
   home,
@@ -57,6 +59,7 @@ const RAW: Record<IconName, string> = {
   info,
   'chevron-right': chevronRight,
   'airplane-mode': airplaneMode,
+  'clipboard-plan': clipboardPlan,
 }
 
 /**

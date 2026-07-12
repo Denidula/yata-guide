@@ -203,7 +203,6 @@ export const STRINGS = {
     // 次アクション（W2で地図を実装。計画はプレースホルダのまま）
     ctaMap: '避難先を地図で見る',
     ctaPlan: 'わが家の避難計画をつくる',
-    ctaComingSoon: 'この機能は準備中です（W2で実装）',
     // 避難先サマリー（カード内。地震を主導線とする）
     evacTitle: 'いざというときの避難先',
     evacAreaLabel: '地震のとき近い避難場所',
@@ -222,10 +221,11 @@ export const STRINGS = {
     banner: 'オフライン：保存済みデータで表示中。住所の新規検索にはネット接続が必要です。',
   },
 
-  // 下部タブバー（ホーム/カード/地図の3タブ）
+  // 下部タブバー（ホーム/危険度/計画/地図の4タブ）
   tabs: {
     home: 'ホーム',
     card: '危険度',
+    plan: '計画',
     map: '地図',
   },
 
@@ -273,6 +273,69 @@ export const STRINGS = {
     // 出典（地図下部フッター。disclaimer_draft.md §地図画面の出典）
     attribution:
       '出典：地域危険度（第9回・東京都都市整備局）／浸水予想区域図（東京都建設局）／津波浸水分布（東京都総務局）／高潮浸水想定区域図（東京都港湾局）／避難所・避難場所一覧（東京都総務局）／背景地図＝国土地理院。座標変換・タイル化・ランク色分け等の加工を行った参考情報で、各発表元が作成した情報ではありません。',
+  },
+
+  // 家族プロフィール入力（W1。入力値は端末内IndexedDBのみ＝送信ゼロ）
+  profile: {
+    title: 'わが家の情報',
+    lead: '家族に合わせた避難計画カードを作ります。',
+    sizeLabel: '世帯人数',
+    sizeUnit: '人',
+    agesLabel: '家族の年齢層',
+    agesHint: 'あてはまるものすべて',
+    ageInfant: '乳幼児',
+    ageChild: '小中学生',
+    ageAdult: '大人',
+    ageSenior: '高齢者',
+    attrsLabel: '配慮が必要な家族',
+    attrsHint: 'あてはまるものすべて',
+    attrWheelchair: '車椅子を使う',
+    attrVisual: '目が不自由',
+    attrHearing: '耳が不自由',
+    attrDementia: '認知症・要介護',
+    attrMedical: '在宅医療機器を使う',
+    attrPregnant: '妊娠中・産後',
+    petLabel: 'ペット',
+    petNone: 'いない',
+    petDogCat: '犬・猫',
+    petOther: 'その他',
+    meetingLabel: '家族の集合場所',
+    meetingHint: 'はぐれたときに落ち合う場所をメモできます（任意）',
+    meetingPlaceholder: '例：○○公園の時計台の前',
+    meetingPickLabel: '近くの避難場所から選ぶ（任意）',
+    meetingPickNone: '選択しない',
+    submitBtn: '計画カードをつくる',
+    updateBtn: '計画カードを更新する',
+    cancelBtn: 'もどる',
+    privacyNote: '入力内容はこの端末の中だけに保存され、サーバーには一切送信されません。',
+    loading: '保存した情報を読み込み中…',
+  },
+
+  // マイ避難計画カード（W1）
+  plan: {
+    title: 'マイ避難計画カード',
+    forAddressSuffix: 'の計画',
+    editProfileBtn: '家族情報を変える',
+    // 避難先（優先順）
+    evacTitle: '避難先（優先順）',
+    stepArea: 'まず逃げる',
+    stepAreaSub: '地震のとき身を守る避難場所',
+    stepCenter: '生活避難する',
+    stepCenterSub: '自宅で生活できないときの避難所',
+    bfBadge: 'バリアフリー',
+    bfPriorityNote: '車椅子・介護に配慮し、バリアフリー設備が公表されている避難所を優先しています。',
+    bfPlainLabel: '参考：無条件の最寄り',
+    bfNoMatch: '周辺にバリアフリー設備の公表がある避難所が見つかりませんでした。最寄りの避難所を表示しています。',
+    stepFukushi: '福祉避難所',
+    stepFukushiSub: '二次避難所（開設後に案内）',
+    evacNone: '周辺に該当する避難先の公表データが見つかりませんでした。',
+    // 持ち出し品
+    kitTitle: '非常用持ち出し品',
+    kitBasicTitle: '基本の品目（全員共通）',
+    kitCount: (n: number) => `${n}品目`,
+    // 集合場所
+    meetingTitle: '家族の集合場所',
+    meetingEmpty: '未設定。「家族情報を変える」から追加できます。',
   },
 
   // 福祉避難所（二次避難所）。W1の計画カードで使用（shelters.ts の findNearestFukushi と対）
