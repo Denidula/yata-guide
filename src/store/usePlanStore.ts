@@ -74,6 +74,11 @@ export interface PlanState {
   resolveByCoords: (lat: number, lng: number) => Promise<void>
   /** 位置情報エラーをセット。 */
   setGeoError: (code: ErrorCode) => void
+  /**
+   * 共有URLから受け取った計画を自分の判定結果として取り込む（W2）。
+   * 受信端末でPIP→リスク再解決済みの値を渡す。取り込み後は計画タブを表示。
+   */
+  adoptShared: (address: string, coords: Coords, chomokuId: number, risk: RiskInfo) => void
   /** ホームへ戻す（結果クリア）。 */
   backToHome: () => void
   reset: () => void
@@ -197,6 +202,18 @@ export const usePlanStore = create<PlanState>()(
       },
 
       setGeoError: (code) => set({ uiStatus: { kind: 'error', code } }),
+
+      adoptShared: (address, coords, chomokuId, risk) =>
+        set({
+          address,
+          coords,
+          chomokuId,
+          risk,
+          source: 'input',
+          uiStatus: { kind: 'ready' },
+          view: 'plan', // 取り込み直後は計画カードを見せる
+          restoredFromStorage: false,
+        }),
 
       backToHome: () =>
         set({

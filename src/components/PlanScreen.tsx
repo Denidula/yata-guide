@@ -15,6 +15,7 @@ import { STRINGS } from '../lib/constants'
 export function PlanScreen() {
   const risk = usePlanStore((s) => s.risk)
   const coords = usePlanStore((s) => s.coords)
+  const address = usePlanStore((s) => s.address)
   const profile = useProfileStore((s) => s.profile)
   const hydrated = useProfileStore((s) => s.hydrated)
   const [editing, setEditing] = useState(false)
@@ -35,5 +36,14 @@ export function PlanScreen() {
     return <ProfileForm onSaved={() => setEditing(false)} />
   }
 
-  return <PlanCard risk={risk} coords={coords} profile={profile} onEdit={() => setEditing(true)} />
+  return (
+    <PlanCard
+      ward={risk.ward}
+      town={risk.town}
+      address={address ?? `東京都${risk.ward}`}
+      origin={{ lat: coords.lat, lng: coords.lng }}
+      profile={profile}
+      onEdit={() => setEditing(true)}
+    />
+  )
 }

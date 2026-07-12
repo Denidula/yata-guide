@@ -10,6 +10,7 @@ import {
 } from '../store/useProfileStore'
 import { Icon } from './Icon'
 import { STRINGS } from '../lib/constants'
+import { MEETING_TEXT_MAX } from '../lib/share'
 import {
   filterAreasByHazard,
   loadAreas,
@@ -202,6 +203,7 @@ export function ProfileForm({ onSaved }: { onSaved: () => void }) {
           id="profile-meeting"
           type="text"
           autoComplete="off"
+          maxLength={MEETING_TEXT_MAX}
           placeholder={STRINGS.profile.meetingPlaceholder}
           value={draft.meetingText}
           onChange={(e) => setDraft((d) => ({ ...d, meetingText: e.target.value }))}

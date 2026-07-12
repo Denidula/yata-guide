@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { usePlanStore } from './store/usePlanStore'
 import { useOnlineStatus } from './lib/useOnlineStatus'
 import { STRINGS } from './lib/constants'
+import { clearSharedHash, decodeSharedPlanFromHash, type SharedPlanPayload } from './lib/share'
 import { Header } from './components/Header'
+import { SharedPlanView } from './components/SharedPlanView'
 import { Home } from './components/Home'
 import { RiskCard } from './components/RiskCard'
 import { PlanScreen } from './components/PlanScreen'
@@ -24,11 +27,29 @@ function App() {
   const risk = usePlanStore((s) => s.risk)
   const online = useOnlineStatus()
 
+  // 共有URL（#p=...）で開かれた場合は受信閲覧モード（W2）。起動時に一度だけ解釈する。
+  const [shared, setShared] = useState<SharedPlanPayload | 'invalid' | null>(() =>
+    decodeSharedPlanFromHash(window.location.hash),
+  )
+  const closeShared = () => {
+    clearSharedHash()
+    setShared(null)
+  }
+
   const isLocating = uiStatus.kind === 'locating'
   const isError = uiStatus.kind === 'error'
   const hasResult = risk != null
   // タブバーは結果確定後（判定中・エラー・ホーム以外）に表示
   const showTabBar = hasResult && !isLocating && !isError
+
+  if (shared) {
+    return (
+      <div className="stage">
+        <Header />
+        <SharedPlanView payload={shared} onClose={closeShared} />
+      </div>
+    )
+  }
 
   return (
     <div className={`stage${showTabBar ? ' has-tabbar' : ''}`}>

@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Icon } from './Icon'
+import { SharePanel } from './SharePanel'
 import { STRINGS } from '../lib/constants'
 import { buildPlan, type EvacuationPlan } from '../lib/plan'
 import { activeBarrierFree, type FukushiWithDistance } from '../lib/shelters'
 import { KIT_SOURCE, type KitItem } from '../data/emergency_kit'
-import type { RiskInfo } from '../lib/risk'
-import type { Coords } from '../store/usePlanStore'
 import type { FamilyProfile } from '../store/useProfileStore'
 
 /** プロフィール要約タグ（カード上部。何に基づく計画かを見える化）。 */
@@ -66,17 +65,27 @@ function FukushiRow({ f }: { f: FukushiWithDistance }) {
  * プロフィール＋判定済み地点から plan.ts のルールエンジンで生成した内容を
  * 危険度カードと同じデザイン言語（.card / .es-* / .note-inline）で1枚に集約する。
  * 印刷（Phase3のPDF化）を意識して縦積み・セクション明確の構成にしている。
+ * shared=true は共有URLの受信閲覧モード（W2）: 編集・共有ボタンを出さない。
  */
 export function PlanCard({
-  risk,
-  coords,
+  ward,
+  town,
+  address,
+  origin,
   profile,
   onEdit,
+  shared = false,
 }: {
-  risk: RiskInfo
-  coords: Coords
+  ward: string
+  town: string
+  /** 表示住所（共有URLに含める。sharedでは受信ペイロードの値） */
+  address: string
+  origin: { lat: number; lng: number }
   profile: FamilyProfile
-  onEdit: () => void
+  /** 通常モードの編集導線（sharedでは不要） */
+  onEdit?: () => void
+  /** true=受信閲覧モード */
+  shared?: boolean
 }) {
   const [plan, setPlan] = useState<EvacuationPlan | null>(null)
   const [failed, setFailed] = useState(false)
@@ -85,7 +94,7 @@ export function PlanCard({
     let alive = true
     setPlan(null)
     setFailed(false)
-    buildPlan(profile, { lng: coords.lng, lat: coords.lat }, risk.ward)
+    buildPlan(profile, { lng: origin.lng, lat: origin.lat }, ward)
       .then((p) => {
         if (alive) setPlan(p)
       })
@@ -96,7 +105,7 @@ export function PlanCard({
     return () => {
       alive = false
     }
-  }, [profile, coords, risk])
+  }, [profile, origin.lat, origin.lng, ward])
 
   // 持ち出し品のチェック状態（表示中のみ。端末保存はしない＝毎回まっさらな確認リスト）
   const [checked, setChecked] = useState<Set<string>>(new Set())
@@ -142,12 +151,14 @@ export function PlanCard({
         <div className="addr-body">
           <div className="a1">{STRINGS.plan.title}</div>
           <div className="a2">
-            {risk.ward} {risk.town} {STRINGS.plan.forAddressSuffix}
+            {ward} {town} {STRINGS.plan.forAddressSuffix}
           </div>
         </div>
-        <button className="change" onClick={onEdit}>
-          {STRINGS.plan.editProfileBtn}
-        </button>
+        {!shared && onEdit && (
+          <button className="change" onClick={onEdit}>
+            {STRINGS.plan.editProfileBtn}
+          </button>
+        )}
       </div>
 
       {/* この計画の前提（プロフィール要約タグ） */}
@@ -321,6 +332,13 @@ export function PlanCard({
           <div className="es-none">{STRINGS.plan.meetingEmpty}</div>
         )}
       </div>
+
+      {/* 共有（QR/リンク。受信閲覧モードでは出さない） */}
+      {!shared && (
+        <SharePanel
+          payload={{ ward, town, address, lat: origin.lat, lng: origin.lng, profile }}
+        />
+      )}
 
       {/* 出典・免責フッター（持ち出し品＋福祉避難所＋既存カード免責） */}
       <div className="disclaimer">
