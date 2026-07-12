@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { Icon } from './Icon'
 import { STRINGS } from '../lib/constants'
@@ -8,6 +8,7 @@ import { encodeSharedPlanUrl, type SharedPlanPayload } from '../lib/share'
  * 計画カードの共有パネル（P2-W2）。
  * 開いたときに共有URL（#p=圧縮データ）とQRを生成する。
  * Web Share API があれば共有シート、無ければクリップボードコピーにフォールバック。
+ * payload は親（PlanCard）で useMemo 済みの参照を渡すこと（毎レンダー新規だと再生成が走る）。
  */
 export function SharePanel({ payload }: { payload: SharedPlanPayload }) {
   const [open, setOpen] = useState(false)
@@ -15,15 +16,32 @@ export function SharePanel({ payload }: { payload: SharedPlanPayload }) {
   const [qr, setQr] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
+  // 開閉時のフォーカス移動（開く→パネル、閉じる→開くボタン）。初回マウントでは動かさない。
+  const openBtnRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const prevOpenRef = useRef(open)
+  useEffect(() => {
+    if (prevOpenRef.current === open) return
+    prevOpenRef.current = open
+    if (open) panelRef.current?.focus()
+    else openBtnRef.current?.focus()
+  }, [open])
+
   useEffect(() => {
     if (!open) return
+    let alive = true
     const u = encodeSharedPlanUrl(payload)
     setUrl(u)
     setCopied(false)
     // 誤り訂正M・余白2は一般的なスキャン耐性の目安
     QRCode.toDataURL(u, { errorCorrectionLevel: 'M', margin: 2, scale: 5 })
-      .then(setQr)
+      .then((dataUrl) => {
+        if (alive) setQr(dataUrl)
+      })
       .catch((e) => console.error('QR generation failed:', e))
+    return () => {
+      alive = false
+    }
   }, [open, payload])
 
   const share = async () => {
@@ -48,7 +66,7 @@ export function SharePanel({ payload }: { payload: SharedPlanPayload }) {
   if (!open) {
     return (
       <div className="next-cta">
-        <button className="btn big outline" onClick={() => setOpen(true)}>
+        <button ref={openBtnRef} className="btn big outline" onClick={() => setOpen(true)}>
           <Icon name="chevron-right" size={16} /> {STRINGS.share.openBtn}
         </button>
       </div>
@@ -56,7 +74,13 @@ export function SharePanel({ payload }: { payload: SharedPlanPayload }) {
   }
 
   return (
-    <div className="share-panel" aria-label={STRINGS.share.title}>
+    <div
+      ref={panelRef}
+      tabIndex={-1}
+      className="share-panel"
+      role="group"
+      aria-label={STRINGS.share.title}
+    >
       <div className="es-title">{STRINGS.share.title}</div>
       <p className="share-lead">{STRINGS.share.lead}</p>
 

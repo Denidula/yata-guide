@@ -46,12 +46,15 @@ export const useOfflinePackStore = create<OfflinePackState>()((set, get) => ({
     }
     if (!navigator.onLine) {
       // オフライン中は取得できない。保存済みマーカーがあればその状態を見せる
-      set(marker ? { status: 'done', savedAt: marker.ts } : { status: 'idle' })
+      set(marker ? { status: 'done', savedAt: marker.ts, failedCount: 0 } : { status: 'idle' })
       return
     }
 
     set({ status: 'running', done: 0, total: 0, failedCount: 0 })
-    precacheHomeArea(origin, (done, total) => set({ done, total }))
+    // 進捗は5件ごと＋完了時のみ反映（aria-live=politeの読み上げ過多を防ぐ）
+    precacheHomeArea(origin, (done, total) => {
+      if (done === total || done % 5 === 0) set({ done, total })
+    })
       .then((r) => {
         const anySaved = r.gsi + r.hazard > 0
         set({

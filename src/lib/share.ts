@@ -75,13 +75,20 @@ function unpackBits<K extends string>(keys: readonly K[], bits: number): Record<
   return out
 }
 
+/**
+ * デコード側の検証と対になる各フィールドの最大長。
+ * エンコード側でも必ず同じ上限でクランプする（超過時に自作URLが復号不能になる非対称バグの防止。
+ * 特に address は住所入力の生文字列が入り得るため長さ無制限）。
+ */
+const MAX_LEN = { ward: 20, town: 30, address: 80, areaName: 60 } as const
+
 /** 共有URL（現在のオリジン＋#p=圧縮データ）を生成する。 */
 export function encodeSharedPlanUrl(payload: SharedPlanPayload): string {
   const wire: WirePayload = {
     v: 1,
-    w: payload.ward,
-    t: payload.town,
-    a: payload.address,
+    w: payload.ward.slice(0, MAX_LEN.ward),
+    t: payload.town.slice(0, MAX_LEN.town),
+    a: payload.address.slice(0, MAX_LEN.address),
     y: Math.round(payload.lat * 1e5) / 1e5,
     x: Math.round(payload.lng * 1e5) / 1e5,
     s: payload.profile.size,
@@ -89,7 +96,7 @@ export function encodeSharedPlanUrl(payload: SharedPlanPayload): string {
     c: packBits(ATTR_KEYS, payload.profile.attrs),
     p: Math.max(0, PET_VALUES.indexOf(payload.profile.pet)),
     m: payload.profile.meetingText.slice(0, MEETING_TEXT_MAX),
-    n: payload.profile.meetingAreaName ?? '',
+    n: (payload.profile.meetingAreaName ?? '').slice(0, MAX_LEN.areaName),
   }
   const compressed = compressToEncodedURIComponent(JSON.stringify(wire))
   return `${window.location.origin}${window.location.pathname}${HASH_PREFIX}${compressed}`
@@ -109,6 +116,9 @@ export function decodeSharedPlanFromHash(hash: string): SharedPlanPayload | 'inv
   if (!hash.startsWith(HASH_PREFIX)) return null
   const raw = hash.slice(HASH_PREFIX.length)
   if (!raw) return 'invalid'
+  // 正常なペイロードは数百文字（最大構成の実測でも約300字）。桁違いに長いものは
+  // 展開処理に回さず弾く（decompression bomb的な入力への防御）。
+  if (raw.length > 2000) return 'invalid'
   try {
     const json = decompressFromEncodedURIComponent(raw)
     if (!json) return 'invalid'
@@ -143,12 +153,35 @@ export function clearSharedHash(): void {
 }
 
 /**
+ * プロフィールストアの IndexedDB 復元完了を待つ。
+ * 復元前に saveProfile すると、後から解決する hydration が保存済みの古い値で
+ * 上書きしてしまうため、取り込み前に必ず待つ。復元が来ない環境でも3秒で諦めて続行。
+ */
+function waitForProfileHydration(): Promise<void> {
+  if (useProfileStore.getState().hydrated) return Promise.resolve()
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      unsub()
+      resolve()
+    }, 3000)
+    const unsub = useProfileStore.subscribe((s) => {
+      if (s.hydrated) {
+        clearTimeout(timer)
+        unsub()
+        resolve()
+      }
+    })
+  })
+}
+
+/**
  * 受け取った計画を自分の端末に取り込む。
  * 座標→PIP→リスク解決を受信端末上で再実行（データはすべて端末内/同一オリジン。外部送信なし）し、
  * 判定結果として usePlanStore へ、プロフィールを useProfileStore（IndexedDB）へ保存する。
  * 判定できない座標（都外等）は false。
  */
 export async function adoptSharedPlan(payload: SharedPlanPayload): Promise<boolean> {
+  await waitForProfileHydration()
   const pip = await locateChomoku(payload.lng, payload.lat)
   if (!pip) return false
   const risk = await resolveRisk(pip.chomokuId)

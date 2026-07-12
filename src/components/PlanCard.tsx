@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Icon } from './Icon'
 import { SharePanel } from './SharePanel'
 import { STRINGS } from '../lib/constants'
@@ -157,6 +157,13 @@ export function PlanCard({
 
   // 持ち出し品のチェック状態（表示中のみ。端末保存はしない＝毎回まっさらな確認リスト）
   const [checked, setChecked] = useState<Set<string>>(new Set())
+
+  // SharePanelへ渡すペイロード。毎レンダー新規オブジェクトにすると、無関係なstate変更
+  // （持ち出し品チェック等）でもSharePanel側のQR再生成・コピー通知リセットが走るため固定する。
+  const sharePayload = useMemo(
+    () => ({ ward, town, address, lat: origin.lat, lng: origin.lng, profile }),
+    [ward, town, address, origin.lat, origin.lng, profile],
+  )
   const toggle = (key: string) =>
     setChecked((prev) => {
       const next = new Set(prev)
@@ -298,6 +305,9 @@ export function PlanCard({
             </div>
             {plan.fukushi.status === 'covered' ? (
               <>
+                {plan.fukushi.nearest.length === 0 && (
+                  <div className="es-none">{STRINGS.plan.evacNone}</div>
+                )}
                 {plan.fukushi.nearest.map((f) => (
                   <FukushiRow key={`${f.name}-${f.address}`} f={f} />
                 ))}
@@ -385,11 +395,7 @@ export function PlanCard({
       {!shared && <OfflinePackBlock origin={origin} />}
 
       {/* 共有（QR/リンク。受信閲覧モードでは出さない） */}
-      {!shared && (
-        <SharePanel
-          payload={{ ward, town, address, lat: origin.lat, lng: origin.lng, profile }}
-        />
-      )}
+      {!shared && <SharePanel payload={sharePayload} />}
 
       {/* 出典・免責フッター（持ち出し品＋福祉避難所＋既存カード免責） */}
       <div className="disclaimer">
