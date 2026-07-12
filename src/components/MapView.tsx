@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { Protocol } from 'pmtiles'
+import { hasCachedHeader, registerHazardProtocol } from '../lib/offlineTiles'
 import { usePlanStore } from '../store/usePlanStore'
 import { Icon } from './Icon'
 import {
@@ -229,8 +230,11 @@ export function MapView() {
   originRef.current = coords ? { lng: coords.lng, lat: coords.lat } : null
 
   // --- PMTilesカスタムプロトコル登録（マウント時に一度だけ） ---
+  // W3: キャッシュ対応ソース（offlineTiles.ts）の共有インスタンスを登録する。
+  // 地図の通常表示も同じソースを通るため、見た範囲＋プリキャッシュ済み範囲がオフラインで出る。
   useEffect(() => {
     const protocol = new Protocol()
+    registerHazardProtocol(protocol)
     maplibregl.addProtocol('pmtiles', protocol.tile)
     return () => {
       maplibregl.removeProtocol('pmtiles')
@@ -381,7 +385,9 @@ export function MapView() {
 
     for (const h of HAZARDS) {
       const url = `${TILES_BASE_URL}/${h.file}`
-      const ok = await probePmtiles(url)
+      // W3: プリキャッシュ済み（ヘッダーRangeがCacheにある）ならオフラインでも表示可能なので
+      // ネットワークプローブを省略してOK扱いにする。未キャッシュ時のみ従来のRangeプローブ。
+      const ok = (await hasCachedHeader(url)) || (await probePmtiles(url))
       if (ok) {
         availRef.current[h.key] = true
         anyOk = true

@@ -5,7 +5,55 @@ import { STRINGS } from '../lib/constants'
 import { buildPlan, type EvacuationPlan } from '../lib/plan'
 import { activeBarrierFree, type FukushiWithDistance } from '../lib/shelters'
 import { KIT_SOURCE, type KitItem } from '../data/emergency_kit'
+import { useOfflinePackStore } from '../store/useOfflinePackStore'
 import type { FamilyProfile } from '../store/useProfileStore'
+
+/** 保存時刻の短い表示（例: 7/12 13:05）。 */
+function fmtWhen(ts: number): string {
+  const d = new Date(ts)
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${d.getMonth() + 1}/${d.getDate()} ${hh}:${mm}`
+}
+
+/** 災害モード（オフライン保存）ステータスブロック。通常モードの計画カードにのみ出す。 */
+function OfflinePackBlock({ origin }: { origin: { lat: number; lng: number } }) {
+  const { status, done, total, savedAt, failedCount, ensure } = useOfflinePackStore()
+
+  // 計画カード表示（＝計画の保存/復元）を起点にプリキャッシュ。済みならマーカー確認のみ。
+  useEffect(() => {
+    ensure({ lng: origin.lng, lat: origin.lat })
+  }, [ensure, origin.lat, origin.lng])
+
+  return (
+    <div className="offline-pack">
+      <div className="es-title">
+        <Icon name="airplane-mode" size={18} /> {STRINGS.offlinePack.title}
+      </div>
+      <div className="op-status" role="status" aria-live="polite">
+        {status === 'running' && (
+          <span className="op-running">{STRINGS.offlinePack.running(done, total)}</span>
+        )}
+        {status === 'done' && savedAt != null && (
+          <span>{STRINGS.offlinePack.doneNote(fmtWhen(savedAt))}</span>
+        )}
+        {status === 'done' && failedCount > 0 && (
+          <span className="op-warn">{STRINGS.offlinePack.partialNote}</span>
+        )}
+        {status === 'error' && <span className="op-warn">{STRINGS.offlinePack.errorNote}</span>}
+        {status === 'idle' && <span>{STRINGS.offlinePack.idleNote}</span>}
+      </div>
+      {(status === 'done' || status === 'error') && (
+        <button
+          className="op-redo"
+          onClick={() => ensure({ lng: origin.lng, lat: origin.lat }, true)}
+        >
+          {STRINGS.offlinePack.redoBtn}
+        </button>
+      )}
+    </div>
+  )
+}
 
 /** プロフィール要約タグ（カード上部。何に基づく計画かを見える化）。 */
 function profileTags(profile: FamilyProfile): string[] {
@@ -332,6 +380,9 @@ export function PlanCard({
           <div className="es-none">{STRINGS.plan.meetingEmpty}</div>
         )}
       </div>
+
+      {/* 災害モード＝自宅周辺タイルのオフライン保存（受信閲覧モードでは出さない） */}
+      {!shared && <OfflinePackBlock origin={origin} />}
 
       {/* 共有（QR/リンク。受信閲覧モードでは出さない） */}
       {!shared && (
