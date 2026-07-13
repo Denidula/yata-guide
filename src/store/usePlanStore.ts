@@ -109,12 +109,12 @@ async function requestPersistentStorage() {
   try {
     if (navigator.storage?.persist) {
       const granted = await navigator.storage.persist()
-      console.info(`[YATA GUIDE] navigator.storage.persist() → ${granted ? 'granted' : 'denied'}`)
+      console.info(`[ヤタガラス] navigator.storage.persist() → ${granted ? 'granted' : 'denied'}`)
     } else {
-      console.info('[YATA GUIDE] navigator.storage.persist() は非対応環境です')
+      console.info('[ヤタガラス] navigator.storage.persist() は非対応環境です')
     }
   } catch (e) {
-    console.info('[YATA GUIDE] navigator.storage.persist() 呼び出しに失敗:', e)
+    console.info('[ヤタガラス] navigator.storage.persist() 呼び出しに失敗:', e)
   }
 }
 

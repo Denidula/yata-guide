@@ -12,8 +12,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
-        name: 'YATA GUIDE',
-        short_name: 'YATA',
+        name: 'ヤタガラス',
+        short_name: 'ヤタガラス',
         description: 'わが家の避難計画、3秒で。',
         theme_color: '#0017C1',
         background_color: '#ffffff',

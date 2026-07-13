@@ -314,7 +314,7 @@ export function MapView() {
         if (!hasLoggedDegrade) {
           hasLoggedDegrade = true
           console.info(
-            '[YATA GUIDE] 地図エンジンの初期化がタイムアウトしました。ベース地図なしで案内のみ表示します。',
+            '[ヤタガラス] 地図エンジンの初期化がタイムアウトしました。ベース地図なしで案内のみ表示します。',
           )
         }
         setLayerState('degraded')
@@ -406,7 +406,7 @@ export function MapView() {
       hasLoggedDegrade = true
       // 未捕捉エラーを出さず、情報ログを1回だけ。
       console.info(
-        '[YATA GUIDE] 一部/全てのハザードタイルを配信環境から取得できませんでした（Range非対応の可能性）。ベース地図のみ表示します。',
+        '[ヤタガラス] 一部/全てのハザードタイルを配信環境から取得できませんでした（Range非対応の可能性）。ベース地図のみ表示します。',
       )
     }
 

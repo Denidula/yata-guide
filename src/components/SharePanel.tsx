@@ -95,7 +95,7 @@ export function SharePanel({ payload }: { payload: SharedPlanPayload }) {
           {STRINGS.share.shareBtn}
         </button>
         {qr && (
-          <a className="btn outline" download="yata-guide-plan-qr.png" href={qr}>
+          <a className="btn outline" download="yatagarasu-plan-qr.png" href={qr}>
             {STRINGS.share.saveImgBtn}
           </a>
         )}
