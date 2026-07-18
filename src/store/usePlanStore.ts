@@ -54,6 +54,11 @@ export interface PlanState {
   chomokuId: number | null
   /** 解決したリスク情報 */
   risk: RiskInfo | null
+  /**
+   * PIP判定が厳密ヒットだったか（false=町丁目ポリゴン外→約50m近傍スナップで割当。
+   * カードに「近くの町丁目から推定」の注記を出す。レビューM-5）
+   */
+  pipExact: boolean
   /** 画面状態 */
   uiStatus: UiStatus
   /** どの手段で地点が決まったか */
@@ -78,7 +83,13 @@ export interface PlanState {
    * 共有URLから受け取った計画を自分の判定結果として取り込む（W2）。
    * 受信端末でPIP→リスク再解決済みの値を渡す。取り込み後は計画タブを表示。
    */
-  adoptShared: (address: string, coords: Coords, chomokuId: number, risk: RiskInfo) => void
+  adoptShared: (
+    address: string,
+    coords: Coords,
+    chomokuId: number,
+    risk: RiskInfo,
+    pipExact: boolean,
+  ) => void
   /** ホームへ戻す（結果クリア）。 */
   backToHome: () => void
   reset: () => void
@@ -91,10 +102,19 @@ const initialState = {
   coords: null,
   chomokuId: null,
   risk: null,
+  pipExact: true,
   uiStatus: { kind: 'idle' } as UiStatus,
   source: null,
   restoredFromStorage: false,
 }
+
+/**
+ * 検索の世代番号（レビューM-4）。
+ * 連続検索・キャンセル・ホーム戻り後に、遅れて完了した古いジオコーディング/判定結果が
+ * 新しい画面を上書きしない（＝別地点の危険度を自宅と誤認させない）よう、
+ * 非同期処理の各await後に「自分がまだ最新世代か」を確認して古い結果は捨てる。
+ */
+let searchGeneration = 0
 
 /**
  * 端末ストレージの永続化を要求する（iOS/A2HS対策）。
@@ -118,7 +138,7 @@ async function requestPersistentStorage() {
   }
 }
 
-/** 座標→PIP→リスク解決の共通処理。状態を確定させる。 */
+/** 座標→PIP→リスク解決の共通処理。状態を確定させる。gen=呼び出し時の検索世代（M-4）。 */
 async function resolveFromCoords(
   set: (partial: Partial<PlanState>) => void,
   lat: number,
@@ -126,13 +146,16 @@ async function resolveFromCoords(
   coords: Coords,
   address: string,
   source: LocationSource,
+  gen: number,
 ) {
   const pip = await locateChomoku(lng, lat)
+  if (gen !== searchGeneration) return // 古い検索。結果を捨てる
   if (!pip) {
     set({ uiStatus: { kind: 'error', code: 'out_of_area' } })
     return
   }
   const risk = await resolveRisk(pip.chomokuId)
+  if (gen !== searchGeneration) return
   if (!risk) {
     set({ uiStatus: { kind: 'error', code: 'out_of_area' } })
     return
@@ -142,6 +165,7 @@ async function resolveFromCoords(
     coords,
     chomokuId: pip.chomokuId,
     risk,
+    pipExact: pip.exact,
     source,
     uiStatus: { kind: 'ready' },
     view: 'card', // 判定完了で危険度カードへ
@@ -169,9 +193,11 @@ export const usePlanStore = create<PlanState>()(
       setView: (view) => set({ view }),
 
       resolveByAddress: async (address, source) => {
+        const gen = ++searchGeneration
         set({ uiStatus: { kind: 'locating' } })
         try {
           const g = await geocode(address)
+          if (gen !== searchGeneration) return // 古い検索。結果もエラーも反映しない
           if (!g) {
             // オフライン時のジオコーディング失敗は専用メッセージで区別する
             // （既存キャッシュの正規化辞書で解けない新規住所はネット接続が必要）。
@@ -181,51 +207,59 @@ export const usePlanStore = create<PlanState>()(
           }
           const coords: Coords = { lat: g.lat, lng: g.lng, level: g.level, precise: g.precise }
           // 表示住所は正規化結果があればそれ、無ければ入力そのまま
-          await resolveFromCoords(set, g.lat, g.lng, coords, g.normalized || address, source)
+          await resolveFromCoords(set, g.lat, g.lng, coords, g.normalized || address, source, gen)
         } catch (e) {
           console.error('resolveByAddress failed:', e)
+          if (gen !== searchGeneration) return
           const code: ErrorCode = navigator.onLine ? 'generic' : 'geocode_offline'
           set({ uiStatus: { kind: 'error', code } })
         }
       },
 
       resolveByCoords: async (lat, lng) => {
+        const gen = ++searchGeneration
         set({ uiStatus: { kind: 'locating' } })
         try {
           // 現在地はGPS実測なので高精度扱い
           const coords: Coords = { lat, lng, level: 8, precise: true }
-          await resolveFromCoords(set, lat, lng, coords, '現在地', 'gps')
+          await resolveFromCoords(set, lat, lng, coords, '現在地', 'gps', gen)
         } catch (e) {
           console.error('resolveByCoords failed:', e)
+          if (gen !== searchGeneration) return
           set({ uiStatus: { kind: 'error', code: 'generic' } })
         }
       },
 
       setGeoError: (code) => set({ uiStatus: { kind: 'error', code } }),
 
-      adoptShared: (address, coords, chomokuId, risk) =>
+      adoptShared: (address, coords, chomokuId, risk, pipExact) =>
         set({
           address,
           coords,
           chomokuId,
           risk,
+          pipExact,
           source: 'input',
           uiStatus: { kind: 'ready' },
           view: 'plan', // 取り込み直後は計画カードを見せる
           restoredFromStorage: false,
         }),
 
-      backToHome: () =>
+      backToHome: () => {
+        // 進行中の判定があれば無効化（キャンセル・M-4/M-9。遅延結果の上書きを防ぐ）
+        searchGeneration++
         set({
           view: 'home',
           address: null,
           coords: null,
           chomokuId: null,
           risk: null,
+          pipExact: true,
           source: null,
           uiStatus: { kind: 'idle' },
           restoredFromStorage: false,
-        }),
+        })
+      },
 
       reset: () => set({ ...initialState }),
     }),
@@ -238,8 +272,13 @@ export const usePlanStore = create<PlanState>()(
         coords: s.coords,
         chomokuId: s.chomokuId,
         risk: s.risk,
+        pipExact: s.pipExact,
       }),
       // 復元後の後処理：前回結果があればカード表示可能状態にし、「前回結果」ラベルを立てる。
+      // 注: localStorage（同期ストレージ）の復元は create() の実行中に完了するため、
+      // このコールバック時点では購読者が存在せず、直接代入で問題ない
+      // （むしろ setState はストア変数が未初期化＝TDZで呼べない）。IndexedDB等の
+      // 非同期ストレージに変える場合は useProfileStore と同様 setState 経由にすること。
       onRehydrateStorage: () => (state) => {
         if (state?.risk && state.coords) {
           state.uiStatus = { kind: 'ready' }

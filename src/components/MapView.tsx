@@ -216,6 +216,10 @@ export function MapView() {
   coordsRef.current = coords
 
   const [hazard, setHazard] = useState<HazardKey>('quake')
+  // 地図ロード完了ハンドラ等の「古いクロージャ」から最新のタブ値を読むためのref。
+  // これが無いと、ロード中にタブを切り替えても初期値（地震）でレイヤーが適用される（レビューM-2）。
+  const hazardRef = useRef(hazard)
+  hazardRef.current = hazard
   const [layerState, setLayerState] = useState<LayerLoadState>('idle')
   /** 各ハザードのタイル利用可否（ヘッダーfetch成功=true）。未判定はundefined。 */
   const availRef = useRef<Partial<Record<HazardKey, boolean>>>({})
@@ -325,8 +329,14 @@ export function MapView() {
       window.clearTimeout(loadWatchdog)
       styleReadyRef.current = true
       map.resize() // 初期化時にコンテナ高さが未確定でも確実に合わせる
-      void addHazardLayers(map)
-      addEvacuationLayers(map)
+      // ハザード（非同期プローブ込み）の追加完了を待ってから避難先ピンを重ねる。
+      // 並行追加だと実際の追加順が逆転し、塗りがピンの上に乗る（レビューM-3）。
+      void (async () => {
+        await addHazardLayers(map)
+        // await中にタブ切替等でunmountされていたら破棄済みmapに触らない（レビューM-13）
+        if (mapRef.current !== map) return
+        addEvacuationLayers(map)
+      })()
     })
 
     // コンテナのサイズ変化（タブ表示直後や端末回転）に追従してリサイズ。
@@ -388,6 +398,8 @@ export function MapView() {
       // W3: プリキャッシュ済み（ヘッダーRangeがCacheにある）ならオフラインでも表示可能なので
       // ネットワークプローブを省略してOK扱いにする。未キャッシュ時のみ従来のRangeプローブ。
       const ok = (await hasCachedHeader(url)) || (await probePmtiles(url))
+      // await中のunmountで破棄済みmapに触らない（レビューM-13）
+      if (mapRef.current !== map) return
       if (ok) {
         availRef.current[h.key] = true
         anyOk = true
@@ -411,7 +423,8 @@ export function MapView() {
     }
 
     setLayerState(anyOk ? 'ready' : 'degraded')
-    applyHazardVisibility(map, hazard)
+    // 最新のタブ値で適用（ロード中にタブが切り替わっていても正しいレイヤーを出す。レビューM-2）
+    applyHazardVisibility(map, hazardRef.current)
   }
 
   /** 指定ハザードのスタイルレイヤーを追加（重複追加は避ける）。初期は非表示。 */
@@ -528,7 +541,7 @@ export function MapView() {
         },
       })
     }
-    applyAreaFilter(map, hazard)
+    applyAreaFilter(map, hazardRef.current)
 
     // クリック（ピン→ポップアップ）とカーソル。参照安定なハンドラで1回だけ登録。
     map.on('click', LYR_AREAS, areaClickHandler)

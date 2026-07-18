@@ -115,9 +115,12 @@ export const useProfileStore = create<ProfileState>()(
       name: 'yata-guide-profile',
       storage: createJSONStorage(() => idbStorage),
       partialize: (s) => ({ profile: s.profile }),
-      // 復元完了（エラー時も完了扱い）でフォーム初期化を解禁する
-      onRehydrateStorage: () => (state) => {
-        if (state) state.hydrated = true
+      // 復元完了（エラー時も完了扱い）でフォーム初期化を解禁する。
+      // 直接代入（state.hydrated = true）はzustandの変更通知に乗らず、購読者
+      // （share.ts の waitForProfileHydration 等）へ復元完了が伝わらない（レビューM-6）。
+      // IndexedDBの復元は非同期で create() 完了後に解決するため、ここでの setState 参照は安全。
+      onRehydrateStorage: () => () => {
+        useProfileStore.setState({ hydrated: true })
       },
     },
   ),

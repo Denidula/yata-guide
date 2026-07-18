@@ -52,16 +52,21 @@ export const useOfflinePackStore = create<OfflinePackState>()((set, get) => ({
 
     set({ status: 'running', done: 0, total: 0, failedCount: 0 })
     // 進捗は5件ごと＋完了時のみ反映（aria-live=politeの読み上げ過多を防ぐ）
-    precacheHomeArea(origin, (done, total) => {
-      if (done === total || done % 5 === 0) set({ done, total })
-    })
+    precacheHomeArea(
+      origin,
+      (done, total) => {
+        if (done === total || done % 5 === 0) set({ done, total })
+      },
+      { force },
+    )
       .then((r) => {
-        const anySaved = r.gsi + r.hazard > 0
-        set({
-          status: anySaved ? 'done' : 'error',
-          savedAt: anySaved ? Date.now() : null,
-          failedCount: r.failed,
-        })
+        // markerWritten=false は「保存済み」を名乗れない状態（取得/保存の失敗が多すぎる。R-1）。
+        // その場合は error 表示にし、旧マーカー（過去の正常なパック）は据え置かれる。
+        if (r.markerWritten) {
+          set({ status: 'done', savedAt: Date.now(), failedCount: r.failed })
+        } else {
+          set({ status: 'error', savedAt: null, failedCount: r.failed })
+        }
       })
       .catch((e) => {
         console.error('precacheHomeArea failed:', e)

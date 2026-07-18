@@ -1,12 +1,21 @@
 import { usePlanStore, type ErrorCode } from '../store/usePlanStore'
 import { STRINGS } from '../lib/constants'
 
-/** 判定中のローディング表示。 */
+/**
+ * 判定中のローディング表示。
+ * 通信不安定でfetchが返らないケースの脱出口としてキャンセル導線を持つ（レビューM-9）。
+ * キャンセルは backToHome（内部で検索世代を進める）なので、遅れて完了した
+ * 判定結果が後から画面を上書きすることもない。
+ */
 export function LoadingScreen() {
+  const backToHome = usePlanStore((s) => s.backToHome)
   return (
     <div className="loading-wrap" aria-live="polite" aria-busy="true">
       <div className="spinner" />
       <p>{STRINGS.home.loading}</p>
+      <button className="btn outline loading-cancel" onClick={backToHome}>
+        {STRINGS.home.loadingCancel}
+      </button>
     </div>
   )
 }

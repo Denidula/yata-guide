@@ -122,6 +122,8 @@ export function decodeSharedPlanFromHash(hash: string): SharedPlanPayload | 'inv
   try {
     const json = decompressFromEncodedURIComponent(raw)
     if (!json) return 'invalid'
+    // 展開後のサイズも制限する（高圧縮率に細工した入力への防御。正常ペイロードは実測約300字）
+    if (json.length > 4096) return 'invalid'
     const w = JSON.parse(json) as Partial<WirePayload>
     if (w.v !== 1) return 'invalid'
     if (!isStr(w.w, 20) || w.w === '' || !isStr(w.t, 30) || !isStr(w.a, 80)) return 'invalid'
@@ -190,6 +192,6 @@ export async function adoptSharedPlan(payload: SharedPlanPayload): Promise<boole
   // 共有座標は送信側の判定済み地点なので高精度扱いで復元する
   const coords: Coords = { lat: payload.lat, lng: payload.lng, level: 8, precise: true }
   useProfileStore.getState().saveProfile(payload.profile)
-  usePlanStore.getState().adoptShared(payload.address, coords, pip.chomokuId, risk)
+  usePlanStore.getState().adoptShared(payload.address, coords, pip.chomokuId, risk, pip.exact)
   return true
 }

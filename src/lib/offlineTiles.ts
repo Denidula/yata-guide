@@ -20,8 +20,50 @@
 import { FetchSource, PMTiles, Protocol, type Source } from 'pmtiles'
 import { HAZARDS, TILES_BASE_URL } from './constants'
 
-/** Range断片の保存先キャッシュ名。 */
-const RANGE_CACHE = 'yata-offline-tiles'
+/**
+ * Range断片の保存先キャッシュ名（データ版付き。レビューM-1）。
+ * サーバー側でPMTilesを差し替えたら版を上げ、旧版を STALE_RANGE_CACHES に追加する。
+ * etagベースの更新検知（下記CachingSource）が主で、版上げは強制リセット用。
+ */
+const RANGE_CACHE = 'yata-offline-tiles-v2'
+/** 廃止済みキャッシュ名（初回利用時に削除）。 */
+const STALE_RANGE_CACHES = ['yata-offline-tiles']
+
+let staleCleanupPromise: Promise<void> | null = null
+/** 旧版キャッシュの掃除（プロセス中一度だけ）。 */
+function cleanupStaleCaches(): Promise<void> {
+  if (!staleCleanupPromise) {
+    staleCleanupPromise = (async () => {
+      for (const name of STALE_RANGE_CACHES) {
+        try {
+          await caches.delete(name)
+        } catch {
+          // Cache API不可環境では何もしない
+        }
+      }
+    })()
+  }
+  return staleCleanupPromise
+}
+
+/**
+ * 保存失敗（QuotaExceeded等）の計数（レビューM-15）。
+ * precacheHomeArea が開始時にリセットし、終了時に失敗数へ合算してユーザーに見せる。
+ */
+let rangePutFailures = 0
+
+/** 指定アーカイブのRange断片をすべて削除（etag不一致＝ファイル更新検知時、または保存し直し）。 */
+async function purgeArchive(url: string): Promise<void> {
+  try {
+    const cache = await caches.open(RANGE_CACHE)
+    const keys = await cache.keys()
+    await Promise.all(
+      keys.filter((req) => req.url.startsWith(`${url}?yr=`)).map((req) => cache.delete(req)),
+    )
+  } catch {
+    // 消せない場合は次のetag比較で再度試みる
+  }
+}
 /** 地理院タイルのSWランタイムキャッシュと同名（vite.config.ts の gsi-raster-tiles）。 */
 const GSI_CACHE = 'gsi-raster-tiles'
 /** アプリデータのSWランタイムキャッシュと同名（vite.config.ts の yata-data）。 */
@@ -71,26 +113,46 @@ class CachingSource implements Source {
     signal?: AbortSignal,
     etag?: string,
   ): Promise<{ data: ArrayBuffer; etag?: string; expires?: string; cacheControl?: string }> {
+    await cleanupStaleCaches()
     const key = rangeKey(this.url, offset, length)
     try {
       const cache = await caches.open(RANGE_CACHE)
       const hit = await cache.match(key)
-      if (hit) return { data: await hit.arrayBuffer() }
+      if (hit) {
+        const storedEtag = hit.headers.get('etag') ?? undefined
+        if (etag && storedEtag && etag !== storedEtag) {
+          // 呼び出し側（PMTiles）が期待する版とキャッシュの版が違う＝アーカイブ更新。
+          // 新旧断片の混在読み（破損）を防ぐため、この档の断片を一掃してネットワークへ（レビューM-1）。
+          await purgeArchive(this.url)
+        } else {
+          return { data: await hit.arrayBuffer(), etag: storedEtag }
+        }
+      }
     } catch {
       // Cache API不可 → ネットワークへ
     }
     const resp = await this.inner.getBytes(offset, length, signal, etag)
     try {
       const cache = await caches.open(RANGE_CACHE)
-      // Responseがbodyを消費するため複製を保存する
+      // アーカイブ更新検知: 保存済みヘッダー断片のetagと今回のetagが違えば旧断片を一掃してから保存
+      if (resp.etag) {
+        const head = await cache.match(rangeKey(this.url, HEADER_RANGE[0], HEADER_RANGE[1]))
+        const headEtag = head?.headers.get('etag')
+        if (headEtag && headEtag !== resp.etag) await purgeArchive(this.url)
+      }
+      // Responseがbodyを消費するため複製を保存する。etagも保持して整合チェックを生かす
       await cache.put(
         key,
         new Response(resp.data.slice(0), {
-          headers: { 'content-type': 'application/octet-stream' },
+          headers: {
+            'content-type': 'application/octet-stream',
+            ...(resp.etag ? { etag: resp.etag } : {}),
+          },
         }),
       )
     } catch {
-      // 保存失敗は致命でない（オンライン動作は継続）
+      // 保存失敗（容量逼迫等）は計上してオンライン動作は継続（レビューM-15）
+      rangePutFailures++
     }
     return resp
   }
@@ -161,8 +223,12 @@ function neighborhoodTiles(origin: { lng: number; lat: number }): Array<{ z: num
   return out
 }
 
+/** マーカー版。RANGE_CACHE の版上げと同時に上げる（旧キャッシュ前提のマーカーを無効化）。 */
+const MARKER_VERSION = 2
+
 /** 完了マーカー。 */
 export interface OfflinePackMarker {
+  v: number
   lat: number
   lng: number
   ts: number
@@ -175,6 +241,8 @@ export function readMarker(): OfflinePackMarker | null {
     const raw = localStorage.getItem(MARKER_KEY)
     if (!raw) return null
     const m = JSON.parse(raw) as OfflinePackMarker
+    // 版違い（旧キャッシュ時代）のマーカーは無効＝再プリキャッシュさせる
+    if (m.v !== MARKER_VERSION) return null
     if (typeof m.lat !== 'number' || typeof m.lng !== 'number' || typeof m.ts !== 'number') return null
     return m
   } catch {
@@ -202,17 +270,51 @@ export function isMarkerFresh(m: OfflinePackMarker | null, origin: { lng: number
 /** 進捗コールバック。 */
 export type ProgressFn = (done: number, total: number) => void
 
+/** プリキャッシュ結果。markerWritten=false は「保存済み」を名乗れない状態（レビューR-1）。 */
+export interface PrecacheResult {
+  gsi: number
+  hazard: number
+  /** 取得失敗＋保存失敗（QuotaExceeded等）の合計 */
+  failed: number
+  /** 完了マーカーを書いたか（=次回以降「保存済み」表示してよいか） */
+  markerWritten: boolean
+}
+
+/** マーカーを書いてよい失敗率の上限（これを超えたら「保存できませんでした」扱い）。 */
+const MARKER_MAX_FAILURE_RATE = 0.2
+
 /**
  * 自宅周辺のプリキャッシュ本体。
  * 1) /data/*（判定・避難先・福祉避難所データ）
  * 2) 地理院ラスタ z12〜16 近傍
  * 3) ハザードPMTiles（開けたアーカイブのみ、z範囲はヘッダーでクランプ）
- * 一部失敗しても続行し、成功数を返す（allSettled方針）。
+ * 一部失敗しても続行する（allSettled方針）が、完了マーカーは
+ * 「ベース地図が1枚以上保存できた かつ 失敗率が閾値以下」のときだけ書く（レビューR-1）。
+ * @param opts.force true=キャッシュ済みRange断片を捨てて取り直す（「保存し直す」。レビューM-1）
  */
 export async function precacheHomeArea(
   origin: { lng: number; lat: number },
   onProgress?: ProgressFn,
-): Promise<{ gsi: number; hazard: number; failed: number }> {
+  opts?: { force?: boolean },
+): Promise<PrecacheResult> {
+  await cleanupStaleCaches()
+  rangePutFailures = 0
+  if (opts?.force) {
+    // 取り直しは先に旧断片を捨てる。以後の失敗時に旧マーカーが「保存済み」を
+    // 主張し続けないよう、マーカーも同時に無効化する（成功すれば書き直される）
+    try {
+      localStorage.removeItem(MARKER_KEY)
+    } catch {
+      // 消せなくても致命ではない
+    }
+    for (const h of HAZARDS) {
+      await purgeArchive(hazardUrl(h.file))
+      // 重要: メモリ上のPMTilesインスタンスはヘッダー/ディレクトリを記憶しているため、
+      // 破棄しないと再取得時にそれらのRange断片がキャッシュへ書き戻されず、
+      // リロード後のオフラインでアーカイブを開けなくなる（のに保存済み表示になる）
+      instances.delete(hazardUrl(h.file))
+    }
+  }
   const tiles = neighborhoodTiles(origin)
 
   // 開けるハザードアーカイブを先に判定（ヘッダー読取もwrite-throughでキャッシュされる）
@@ -228,7 +330,7 @@ export async function precacheHomeArea(
   }
 
   const gsiJobs = tiles.map(
-    (t) => () => precacheGsiTile(t.z, t.x, t.y),
+    (t) => () => precacheGsiTile(t.z, t.x, t.y, opts?.force === true),
   )
   const hazardJobs = archives.flatMap(({ p, minZoom, maxZoom }) =>
     tiles
@@ -265,24 +367,38 @@ export async function precacheHomeArea(
   // アプリデータ（SWのyata-data CacheFirstに確実に載せる）
   await precacheAppData()
 
-  writeMarker({ lat: origin.lat, lng: origin.lng, ts: Date.now(), gsi, hazard })
-  return { gsi, hazard, failed }
+  // 保存失敗（write-through側のQuotaExceeded等）も失敗として合算（レビューM-15）
+  const failedTotal = failed + rangePutFailures
+  rangePutFailures = 0
+
+  // 「保存済み」を名乗ってよいときだけマーカーを書く（レビューR-1）。
+  // 全滅・大量失敗時にマーカーを書くと、次回以降オフラインで地図が出ないのに
+  // 「保存済み」と表示され続ける（災害時に最も危険な嘘になる）。
+  // 失敗時は旧マーカーを消さない＝以前の正常なパックがあればそれは引き続き有効。
+  const markerWritten = gsi > 0 && failedTotal <= Math.ceil(total * MARKER_MAX_FAILURE_RATE)
+  if (markerWritten) {
+    writeMarker({ v: MARKER_VERSION, lat: origin.lat, lng: origin.lng, ts: Date.now(), gsi, hazard })
+  }
+  return { gsi, hazard, failed: failedTotal, markerWritten }
 }
 
-/** 地理院タイル1枚: fetch→gsi-raster-tilesへ保存（SWのCacheFirstと同名＝オフラインでSWが返せる）。 */
-async function precacheGsiTile(z: number, x: number, y: number): Promise<boolean> {
+/**
+ * 地理院タイル1枚: fetch→gsi-raster-tilesへ保存（SWのCacheFirstと同名＝オフラインでSWが返せる）。
+ * 「保存の成功」まで確認して初めて true（fetch成功だけで成功扱いにしない。レビューR-1）。
+ */
+async function precacheGsiTile(z: number, x: number, y: number, force: boolean): Promise<boolean> {
   const url = `https://cyberjapandata.gsi.go.jp/xyz/pale/${z}/${x}/${y}.png`
   try {
-    const res = await fetch(url)
+    const res = await fetch(url, force ? { cache: 'reload' } : undefined)
     if (!res.ok) return false
-    try {
-      const cache = await caches.open(GSI_CACHE)
-      await cache.put(url, res.clone())
-    } catch {
-      // Cache API不可でもfetch自体はSWランタイムキャッシュに載っている可能性がある
-    }
-    // bodyを読み切って接続を解放
-    await res.arrayBuffer()
+    const body = await res.arrayBuffer()
+    const cache = await caches.open(GSI_CACHE)
+    await cache.put(
+      url,
+      new Response(body, {
+        headers: { 'content-type': res.headers.get('content-type') ?? 'image/png' },
+      }),
+    )
     return true
   } catch {
     return false

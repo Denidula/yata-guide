@@ -43,6 +43,7 @@ function liqCell(lv: number): { bg: string; color: string } {
 export function RiskCard({ risk }: { risk: RiskInfo }) {
   const address = usePlanStore((s) => s.address)
   const coords = usePlanStore((s) => s.coords)
+  const pipExact = usePlanStore((s) => s.pipExact)
   const backToHome = usePlanStore((s) => s.backToHome)
   const setView = usePlanStore((s) => s.setView)
   const restored = usePlanStore((s) => s.restoredFromStorage)
@@ -53,6 +54,8 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
   // 避難先サマリー：地震のとき近い避難場所1件＋最寄りの避難所1件。
   const [nearArea, setNearArea] = useState<FacilityWithDistance | null>(null)
   const [nearCenter, setNearCenter] = useState<FacilityWithDistance | null>(null)
+  // 避難所の取得失敗時にセクションごと無言で消さないためのフラグ（レビューM-12）
+  const [centerFailed, setCenterFailed] = useState(false)
   useEffect(() => {
     if (!coords) return
     let alive = true
@@ -65,12 +68,16 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
         setNearArea(nearestOne(origin, quakeAreas))
       })
       .catch((e) => console.error('card nearest area failed:', e))
+    setCenterFailed(false)
     void loadCenters()
       .then((centers) => {
         if (!alive) return
         setNearCenter(nearestOne(origin, centers))
       })
-      .catch((e) => console.error('card nearest center failed:', e))
+      .catch((e) => {
+        console.error('card nearest center failed:', e)
+        if (alive) setCenterFailed(true)
+      })
     return () => {
       alive = false
     }
@@ -116,6 +123,14 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
         <div className="note-inline gray" style={{ margin: '12px 20px 0' }}>
           <Icon name="info" size={15} />
           <span>{STRINGS.card.coarsePrecisionNote}</span>
+        </div>
+      )}
+
+      {/* 近傍スナップの注記（町丁目ポリゴン外→最寄り町丁目に割当のとき。レビューM-5） */}
+      {!pipExact && (
+        <div className="note-inline gray" style={{ margin: '12px 20px 0' }}>
+          <Icon name="info" size={15} />
+          <span>{STRINGS.card.snappedNote}</span>
         </div>
       )}
 
@@ -272,7 +287,7 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
           </div>
         )}
 
-        {nearCenter && (
+        {nearCenter ? (
           <div className="es-row center">
             <div className="es-head">
               <span className="es-dot center" aria-hidden="true" />
@@ -284,6 +299,17 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
             </div>
             <div className="es-note">{STRINGS.card.evacCenterNote}</div>
           </div>
+        ) : (
+          // 取得失敗時もセクションを無言で消さない（レビューM-12）。ロード中は非表示のまま
+          centerFailed && (
+            <div className="es-row center">
+              <div className="es-head">
+                <span className="es-dot center" aria-hidden="true" />
+                <span className="es-label">{STRINGS.card.evacCenterLabel}</span>
+              </div>
+              <div className="es-none">{STRINGS.card.evacNone}</div>
+            </div>
+          )
         )}
       </div>
 
