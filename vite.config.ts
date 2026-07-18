@@ -78,9 +78,13 @@ export default defineConfig({
           },
           // 3) Geolonia CDN（住所正規化の辞書データ）。オフライン時も既存キャッシュで正規化が効くよう SWR。
           //    （オンライン時は裏で更新、オフライン時はキャッシュ即返し。）
+          //    実際の辞書配信ホストは japanese-addresses-v2.geoloniamaps.com（CSP検証で判明。
+          //    旧パターンはgeolonia.comのみでマッチしておらず、辞書がSWキャッシュに载らない潜在バグだった）
           {
             urlPattern: ({ url }) =>
-              url.hostname.endsWith('geolonia.com') || url.hostname.endsWith('geolonia.github.io'),
+              url.hostname.endsWith('geoloniamaps.com') ||
+              url.hostname.endsWith('geolonia.com') ||
+              url.hostname.endsWith('geolonia.github.io'),
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'geolonia-normalize',

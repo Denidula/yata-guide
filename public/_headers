@@ -1,10 +1,10 @@
 # Cloudflare Pages カスタムヘッダー（レビューL-11）
 # CSPの許可先はアプリが実際に通信するホストのみ:
 #   cyberjapandata.gsi.go.jp = 地理院タイル / msearch.gsi.go.jp = 住所検索フォールバック
-#   *.r2.dev = ハザードPMTiles / *.geolonia.com, geolonia.github.io = 住所正規化辞書
+#   *.r2.dev = ハザードPMTiles / *.geoloniamaps.com ほか = 住所正規化辞書（実配信ホストはgeoloniamaps.com）
 # worker-src blob: は MapLibre のワーカー生成に必須。img-src data: はQRコード表示に必須。
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://*.r2.dev https://*.geolonia.com https://geolonia.github.io; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://cyberjapandata.gsi.go.jp https://msearch.gsi.go.jp https://*.r2.dev https://*.geoloniamaps.com https://*.geolonia.com https://geolonia.github.io; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=()
