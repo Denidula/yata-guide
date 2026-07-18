@@ -1,0 +1,28 @@
+# 品質ゲート（レビュー提案）: push/PR時に lint・型・単体テスト・本番ビルドを検証する。
+# Cloudflare Pages のデプロイとは独立（Pages は main への push で従来どおり自動デプロイ）。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Lint (oxlint)
+        run: npm run lint
+      - name: Typecheck (tsc -b)
+        run: npx tsc -b
+      - name: Unit tests (vitest)
+        run: npm test
+      - name: Build (vite)
+        run: npm run build

@@ -41,7 +41,7 @@ export function ErrorScreen({ code }: { code: ErrorCode }) {
         <span>{ERROR_MESSAGE[code]}</span>
       </div>
       <button className="btn big" onClick={backToHome}>
-        住所入力にもどる
+        {STRINGS.errors.backBtn}
       </button>
     </div>
   )

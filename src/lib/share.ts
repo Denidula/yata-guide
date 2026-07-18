@@ -108,6 +108,33 @@ function isStr(v: unknown, max: number): v is string {
 }
 
 /**
+ * 除去対象のコードポイント範囲（レビューL-13）:
+ * C0/C1制御・DEL、LRM/RLM、双方向埋め込み/上書き（U+202A-E）、双方向分離（U+2066-9）。
+ */
+const CONTROL_RANGES: Array<[number, number]> = [
+  [0x00, 0x1f],
+  [0x7f, 0x9f],
+  [0x200e, 0x200f],
+  [0x202a, 0x202e],
+  [0x2066, 0x2069],
+]
+
+/**
+ * URL経由の文字列からUnicode制御文字・双方向制御文字を除去する（レビューL-13）。
+ * HTML注入はReactのエスケープで不可だが、RTL上書き等による表示偽装の余地を塞ぐ。
+ * 対象文字列は最大80字なのでループ走査で十分。
+ */
+function stripControlChars(s: string): string {
+  let out = ''
+  for (const ch of s) {
+    const cp = ch.codePointAt(0) ?? 0
+    if (CONTROL_RANGES.some(([lo, hi]) => cp >= lo && cp <= hi)) continue
+    out += ch
+  }
+  return out
+}
+
+/**
  * location.hash から共有ペイロードを復号・検証する。
  * 共有URLでない（#p=が無い）場合は null、壊れている場合は 'invalid' を返す。
  * URL経由の外部入力なので型・範囲・長さを厳格に検証する（表示はReactのエスケープに乗る）。
@@ -135,15 +162,22 @@ export function decodeSharedPlanFromHash(hash: string): SharedPlanPayload | 'inv
     if (typeof w.p !== 'number' || !Number.isInteger(w.p) || w.p < 0 || w.p > 2) return 'invalid'
     if (!isStr(w.m, MEETING_TEXT_MAX) || !isStr(w.n, 60)) return 'invalid'
 
+    const clean = {
+      w: stripControlChars(w.w),
+      t: stripControlChars(w.t),
+      a: stripControlChars(w.a),
+      m: stripControlChars(w.m),
+      n: stripControlChars(w.n),
+    }
     const profile: FamilyProfile = {
       size: w.s,
       ages: unpackBits(AGE_KEYS, w.g),
       attrs: unpackBits(ATTR_KEYS, w.c),
       pet: PET_VALUES[w.p],
-      meetingText: w.m,
-      meetingAreaName: w.n === '' ? null : w.n,
+      meetingText: clean.m,
+      meetingAreaName: clean.n === '' ? null : clean.n,
     }
-    return { ward: w.w, town: w.t, address: w.a, lat: w.y, lng: w.x, profile }
+    return { ward: clean.w, town: clean.t, address: clean.a, lat: w.y, lng: w.x, profile }
   } catch {
     return 'invalid'
   }

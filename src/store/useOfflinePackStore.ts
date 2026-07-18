@@ -29,6 +29,11 @@ interface OfflinePackState {
   ensure: (origin: { lng: number; lat: number }, force?: boolean) => void
 }
 
+/** 実行の通し番号。タイムアウト後に遅れて完了した古い実行の結果を無視するために使う（M-11）。 */
+let runSeq = 0
+/** これを超えて「保存中…」のままなら失敗扱いにして再試行できるようにする（M-11）。 */
+const RUN_TIMEOUT_MS = 120_000
+
 export const useOfflinePackStore = create<OfflinePackState>()((set, get) => ({
   status: 'idle',
   done: 0,
@@ -50,16 +55,29 @@ export const useOfflinePackStore = create<OfflinePackState>()((set, get) => ({
       return
     }
 
+    const run = ++runSeq
     set({ status: 'running', done: 0, total: 0, failedCount: 0 })
+
+    // ウォッチドッグ: fetchが応答せず「保存中…」のまま固まったら失敗にして再試行導線を出す（M-11）。
+    // 遅れて完了した本体の結果は run 比較で無視される。
+    const watchdog = window.setTimeout(() => {
+      if (run === runSeq && get().status === 'running') {
+        runSeq++ // 本体の遅延完了を無効化
+        set({ status: 'error' })
+      }
+    }, RUN_TIMEOUT_MS)
+
     // 進捗は5件ごと＋完了時のみ反映（aria-live=politeの読み上げ過多を防ぐ）
     precacheHomeArea(
       origin,
       (done, total) => {
+        if (run !== runSeq) return
         if (done === total || done % 5 === 0) set({ done, total })
       },
       { force },
     )
       .then((r) => {
+        if (run !== runSeq) return // タイムアウト済みの古い実行
         // markerWritten=false は「保存済み」を名乗れない状態（取得/保存の失敗が多すぎる。R-1）。
         // その場合は error 表示にし、旧マーカー（過去の正常なパック）は据え置かれる。
         if (r.markerWritten) {
@@ -70,7 +88,8 @@ export const useOfflinePackStore = create<OfflinePackState>()((set, get) => ({
       })
       .catch((e) => {
         console.error('precacheHomeArea failed:', e)
-        set({ status: 'error' })
+        if (run === runSeq) set({ status: 'error' })
       })
+      .finally(() => window.clearTimeout(watchdog))
   },
 }))

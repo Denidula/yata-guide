@@ -70,9 +70,14 @@ const PMTILES_MAGIC = 'PMTiles'
  * （本番Cloudflare Pages等）を確実に「配信不可」と判定できる。
  * 例外は投げず、失敗時は false を返す（未捕捉エラーをコンソールに出さない）。
  */
+/** プローブの応答待ち上限（これを超えたら配信不可扱い。タブ往復時の裏fetch残留も防ぐ。L-7）。 */
+const PROBE_TIMEOUT_MS = 5000
+
 async function probePmtiles(url: string): Promise<boolean> {
+  const ctrl = new AbortController()
+  const timer = window.setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS)
   try {
-    const res = await fetch(url, { headers: { Range: 'bytes=0-6' } })
+    const res = await fetch(url, { headers: { Range: 'bytes=0-6' }, signal: ctrl.signal })
     // 206以外（200含む）はRange非対応とみなす。
     if (res.status !== 206) return false
     const buf = await res.arrayBuffer()
@@ -81,6 +86,8 @@ async function probePmtiles(url: string): Promise<boolean> {
     return magic === PMTILES_MAGIC
   } catch {
     return false
+  } finally {
+    window.clearTimeout(timer)
   }
 }
 
@@ -291,6 +298,11 @@ export function MapView() {
       center: coords ? [coords.lng, coords.lat] : INITIAL_CENTER,
       zoom: coords ? HOME_ZOOM : INITIAL_ZOOM,
       attributionControl: false,
+    })
+
+    // タイル取得失敗等のmapエラーを未処理のままコンソールへ流さない（オフライン時のノイズ防止。L-10）
+    map.on('error', (e) => {
+      console.debug('[ヤタガラス] map error:', e.error?.message ?? e)
     })
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')

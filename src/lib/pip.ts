@@ -95,12 +95,24 @@ function distPointToSegment(px: number, py: number, ax: number, ay: number, bx: 
   return Math.sqrt(ex * ex + ey * ey)
 }
 
-/** 点からポリゴン境界（全リング）への最短距離。 */
+/**
+ * 点からポリゴン境界（全リング）への最短距離。
+ * 経度は cos(緯度) で縮めてから比較する（東京付近では経度1度≒緯度1度×0.81。
+ * 素の度数比較だと東西方向が約1.2倍遠く評価され、近傍スナップ先の選択が歪む。L-1）。
+ */
 function distToBoundary(lng: number, lat: number, geom: Polygon | MultiPolygon): number {
+  const k = Math.cos((lat * Math.PI) / 180)
   let best = Infinity
   const scanRing = (ring: Position[]) => {
     for (let i = 0; i < ring.length - 1; i++) {
-      const d = distPointToSegment(lng, lat, ring[i][0], ring[i][1], ring[i + 1][0], ring[i + 1][1])
+      const d = distPointToSegment(
+        lng * k,
+        lat,
+        ring[i][0] * k,
+        ring[i][1],
+        ring[i + 1][0] * k,
+        ring[i + 1][1],
+      )
       if (d < best) best = d
     }
   }

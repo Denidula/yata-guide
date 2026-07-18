@@ -333,6 +333,11 @@ export const STRINGS = {
     stepFukushi: '福祉避難所',
     stepFukushiSub: '二次避難所（開設後に案内）',
     evacNone: '周辺に該当する避難先の公表データが見つかりませんでした。',
+    // 生成中表示（L-14: 「保存した情報を読み込み中…」の流用をやめ実態に合わせる）
+    building: '計画カードを作成中…',
+    // BF設備表示のプレフィックス（L-16）
+    bfEquipPrefix: '設備：',
+    bfEquipUnknown: '公表情報あり',
     // 持ち出し品
     kitTitle: '非常用持ち出し品',
     kitBasicTitle: '基本の品目（全員共通）',
@@ -414,6 +419,7 @@ export const STRINGS = {
     geoUnavailable:
       'お使いの環境では位置情報を利用できません。住所入力からお試しください。',
     generic: '判定中にエラーが発生しました。もう一度お試しください。',
+    backBtn: '住所入力にもどる',
   },
 } as const
 

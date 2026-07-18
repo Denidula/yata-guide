@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { usePlanStore } from './store/usePlanStore'
 import { useOnlineStatus } from './lib/useOnlineStatus'
 import { STRINGS } from './lib/constants'
@@ -27,7 +27,7 @@ function App() {
   const risk = usePlanStore((s) => s.risk)
   const online = useOnlineStatus()
 
-  // 共有URL（#p=...）で開かれた場合は受信閲覧モード（W2）。起動時に一度だけ解釈する。
+  // 共有URL（#p=...）で開かれた場合は受信閲覧モード（W2）。
   const [shared, setShared] = useState<SharedPlanPayload | 'invalid' | null>(() =>
     decodeSharedPlanFromHash(window.location.hash),
   )
@@ -35,6 +35,16 @@ function App() {
     clearSharedHash()
     setShared(null)
   }
+  // アプリを開いているタブで共有リンクを踏むとリロードせずハッシュだけ変わるため、
+  // hashchangeでも解釈する（レビューM-10）。
+  useEffect(() => {
+    const onHashChange = () => {
+      const p = decodeSharedPlanFromHash(window.location.hash)
+      if (p) setShared(p)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
 
   const isLocating = uiStatus.kind === 'locating'
   const isError = uiStatus.kind === 'error'

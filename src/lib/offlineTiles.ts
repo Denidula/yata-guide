@@ -64,7 +64,14 @@ async function purgeArchive(url: string): Promise<void> {
     // 消せない場合は次のetag比較で再度試みる
   }
 }
-/** 地理院タイルのSWランタイムキャッシュと同名（vite.config.ts の gsi-raster-tiles）。 */
+/**
+ * 地理院タイルのSWランタイムキャッシュと同名（vite.config.ts の gsi-raster-tiles）。
+ * 【設計判断（レビューM-14）】workboxのExpirationPlugin管理外からの直接putだが、あえて同名にする:
+ * オフライン時にタイルを返すのはSWのCacheFirstハンドラであり、別名キャッシュに保存すると
+ * SWから見えず配信されない（分離するにはinjectManifestでSW自作が必要＝過剰）。
+ * プラグインのLRU計数ずれの実害は、maxEntries=300に対しプリキャッシュ77枚＋通常回遊で
+ * 上限に達しにくく、達しても評価時に古いタイルが再取得されるだけで壊れない。
+ */
 const GSI_CACHE = 'gsi-raster-tiles'
 /** アプリデータのSWランタイムキャッシュと同名（vite.config.ts の yata-data）。 */
 const DATA_CACHE = 'yata-data'
@@ -181,11 +188,19 @@ export function registerHazardProtocol(protocol: Protocol): void {
   }
 }
 
-/** ヘッダーRange断片がキャッシュ済みか（＝オフラインでもこのアーカイブを開ける）。 */
+/**
+ * ヘッダーRange断片がキャッシュ済みか（＝オフラインでもこのアーカイブを開ける）。
+ * pmtilesの初回読み出しは現行v4で先頭16KiB固定だが、ライブラリ更新で変わっても
+ * 静かに壊れないよう「offset=0の断片が存在するか」で判定する（レビューL-9）。
+ */
 export async function hasCachedHeader(url: string): Promise<boolean> {
   try {
     const cache = await caches.open(RANGE_CACHE)
-    return (await cache.match(rangeKey(url, HEADER_RANGE[0], HEADER_RANGE[1]))) != null
+    // まず現行の固定キーを高速チェック、無ければ offset=0 断片をプレフィックス走査
+    if ((await cache.match(rangeKey(url, HEADER_RANGE[0], HEADER_RANGE[1]))) != null) return true
+    const keys = await cache.keys()
+    const prefix = `${url}?yr=0-`
+    return keys.some((req) => req.url.startsWith(prefix))
   } catch {
     return false
   }
@@ -338,7 +353,9 @@ export async function precacheHomeArea(
       .map((t) => () => p.getZxy(t.z, t.x, t.y).then(() => true).catch(() => false)),
   )
 
-  const jobs = [...gsiJobs, ...hazardJobs]
+  // アプリデータ（/data/*）も進捗の分母に含める（100%到達後に処理が続かないように。レビューL-8）
+  const dataJobs = APP_DATA_URLS.map((u) => () => precacheDataUrl(u))
+  const jobs = [...gsiJobs, ...hazardJobs, ...dataJobs]
   const total = jobs.length
   let done = 0
   let gsi = 0
@@ -354,7 +371,8 @@ export async function precacheHomeArea(
       const ok = await jobs[i]()
       if (ok) {
         if (i < gsiJobs.length) gsi++
-        else hazard++
+        else if (i < gsiJobs.length + hazardJobs.length) hazard++
+        // dataJobs の成功はマーカー条件（gsi/hazard）に数えない（失敗のみ計上）
       } else {
         failed++
       }
@@ -363,9 +381,6 @@ export async function precacheHomeArea(
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, jobs.length) }, () => worker()))
-
-  // アプリデータ（SWのyata-data CacheFirstに確実に載せる）
-  await precacheAppData()
 
   // 保存失敗（write-through側のQuotaExceeded等）も失敗として合算（レビューM-15）
   const failedTotal = failed + rangePutFailures
@@ -405,31 +420,32 @@ async function precacheGsiTile(z: number, x: number, y: number, force: boolean):
   }
 }
 
-/** 判定・避難先データ（/data/*）をキャッシュへ確実に載せる。 */
-async function precacheAppData(): Promise<void> {
-  const urls = [
-    '/data/chomoku_pip.geojson',
-    '/data/chomoku_lookup.json',
-    '/data/evacuation_areas.geojson',
-    '/data/evacuation_centers.geojson',
-    '/data/fukushi_hinanjo.geojson',
-    '/data/fukushi_hinanjo_coverage.json',
-  ]
-  await Promise.all(
-    urls.map(async (u) => {
-      try {
-        const res = await fetch(u)
-        if (!res.ok) return
-        try {
-          const cache = await caches.open(DATA_CACHE)
-          await cache.put(u, res.clone())
-        } catch {
-          // 同上
-        }
-        await res.arrayBuffer()
-      } catch {
-        // オフライン等。既存キャッシュがあればそのまま使える
-      }
-    }),
-  )
+/** 判定・避難先に必要なアプリデータ（/data/*）。 */
+const APP_DATA_URLS = [
+  '/data/chomoku_pip.geojson',
+  '/data/chomoku_lookup.json',
+  '/data/evacuation_areas.geojson',
+  '/data/evacuation_centers.geojson',
+  '/data/fukushi_hinanjo.geojson',
+  '/data/fukushi_hinanjo_coverage.json',
+]
+
+/** アプリデータ1件をキャッシュへ確実に載せる（保存成功まで確認）。 */
+async function precacheDataUrl(u: string): Promise<boolean> {
+  try {
+    const res = await fetch(u)
+    if (!res.ok) return false
+    const body = await res.arrayBuffer()
+    const cache = await caches.open(DATA_CACHE)
+    await cache.put(
+      u,
+      new Response(body, {
+        headers: { 'content-type': res.headers.get('content-type') ?? 'application/json' },
+      }),
+    )
+    return true
+  } catch {
+    // オフライン等。既存キャッシュがあればそのまま使える
+    return false
+  }
 }

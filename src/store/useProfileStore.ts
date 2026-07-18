@@ -113,6 +113,9 @@ export const useProfileStore = create<ProfileState>()(
     }),
     {
       name: 'yata-guide-profile',
+      // 既存保存データはversion:0で記録されている。スキーマ変更時はここを上げてmigrateを書く
+      // （未指定のままだと将来の変更で保存データが黙って捨てられる。レビューL-3）
+      version: 0,
       storage: createJSONStorage(() => idbStorage),
       partialize: (s) => ({ profile: s.profile }),
       // 復元完了（エラー時も完了扱い）でフォーム初期化を解禁する。

@@ -189,7 +189,7 @@ export function PlanCard({
     return (
       <div className="loading-wrap" aria-live="polite" aria-busy="true">
         <div className="spinner" />
-        <p>{STRINGS.profile.loading}</p>
+        <p>{STRINGS.plan.building}</p>
       </div>
     )
   }
@@ -274,7 +274,9 @@ export function PlanCard({
               <div className="es-dist center">{STRINGS.map.distFmt(c.distanceM, c.walkMin)}</div>
               {c.prioritized && (
                 <div className="es-bf">
-                  設備：{activeBarrierFree(c.bf).map((d) => d.label).join('・') || '公表情報あり'}
+                  {STRINGS.plan.bfEquipPrefix}
+                  {activeBarrierFree(c.bf).map((d) => d.label).join('・') ||
+                    STRINGS.plan.bfEquipUnknown}
                 </div>
               )}
             </div>

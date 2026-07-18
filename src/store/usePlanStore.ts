@@ -265,6 +265,9 @@ export const usePlanStore = create<PlanState>()(
     }),
     {
       name: 'yata-guide-last-plan',
+      // 既存保存データはversion:0で記録されている。スキーマ変更時はここを上げてmigrateを書く
+      // （未指定のままだと将来の変更で保存データが黙って捨てられる。レビューL-3）
+      version: 0,
       // localStorage（既定）。永続化するのは「前回の判定結果」に必要な最小限のみ。
       // 入力途中の値・UI状態・タブ位置は保存しない（再訪時は必ずカードから始める）。
       partialize: (s) => ({

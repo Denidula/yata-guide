@@ -34,6 +34,12 @@ function openDb(): Promise<IDBDatabase> {
       dbPromise = null
       reject(req.error ?? new Error('IndexedDB open failed'))
     }
+    // 将来DB_VERSIONを上げた際、旧接続を保持する他タブがあると open が無期限pendingになる。
+    // 失敗として解決し、呼び出し側の劣化動作（保存なし続行）に落とす（レビューL-2）。
+    req.onblocked = () => {
+      dbPromise = null
+      reject(new Error('IndexedDB open blocked by another tab'))
+    }
   })
   return dbPromise
 }

@@ -33,9 +33,10 @@ export function Header() {
         <small>わが家の避難計画 東京都版（デモ）</small>
       </div>
       <div className="lang-wrap" ref={wrapRef}>
+        {/* ポップオーバーはrole=statusの案内であってdialogではないため、aria-haspopupは付けない
+            （実装と宣言の不一致を避ける。開閉状態はaria-expandedで伝える。レビューL-6） */}
         <button
           className="lang-btn"
-          aria-haspopup="dialog"
           aria-expanded={soon}
           aria-label="言語を切り替え（準備中）"
           title="言語切替（準備中）"
