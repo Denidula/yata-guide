@@ -120,6 +120,10 @@ body {
   align-items: center;
   gap: 11px;
   padding: 12px 16px;
+  /* iOSスタンドアロン（status-bar black-translucent + viewport-fit=cover）では
+     ページがステータスバー/ノッチ下まで広がるため、安全域ぶんを上に足す
+     （非対応環境では env() = 0 で無害。R2レビュー指摘） */
+  padding-top: calc(12px + env(safe-area-inset-top));
   border-bottom: 1px solid var(--line);
   background: var(--surface);
   position: sticky;
@@ -203,7 +207,7 @@ body {
 /* ===== オフラインバナー（明るい黄・ヘッダー直下・sticky） ===== */
 .offline-banner {
   position: sticky;
-  top: 59px; /* appbar 高さ相当のすぐ下 */
+  top: calc(59px + env(safe-area-inset-top)); /* appbar 高さ相当（安全域込み）のすぐ下 */
   z-index: 19;
   display: flex;
   align-items: flex-start;

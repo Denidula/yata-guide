@@ -46,6 +46,13 @@ function App() {
     return () => window.removeEventListener('hashchange', onHashChange)
   }, [])
 
+  // 画面切替（タブ・共有ビュー）で必ず先頭から表示する。
+  // 全ビューが同じスクローラー（body）を共有しているため、リセットしないと
+  // 「計画カードを下まで読む→地図タブ→途中位置から表示」になる（R2レビュー指摘）。
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [view, shared])
+
   const isLocating = uiStatus.kind === 'locating'
   const isError = uiStatus.kind === 'error'
   const hasResult = risk != null
