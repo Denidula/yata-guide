@@ -5,6 +5,7 @@ import { STRINGS } from './lib/constants'
 import { clearSharedHash, decodeSharedPlanFromHash, type SharedPlanPayload } from './lib/share'
 import { Header } from './components/Header'
 import { SharedPlanView } from './components/SharedPlanView'
+import { Yakkun } from './components/Yakkun'
 import { Home } from './components/Home'
 import { RiskCard } from './components/RiskCard'
 import { PlanScreen } from './components/PlanScreen'
@@ -91,6 +92,9 @@ function App() {
           {(view === 'home' || !risk) && <Home />}
         </>
       )}
+
+      {/* マスコット（判定中・エラー中は出さない。共有閲覧モードはこの分岐に来ない） */}
+      {!isLocating && !isError && <Yakkun />}
 
       {showTabBar && <TabBar />}
     </div>

@@ -1902,3 +1902,112 @@ body {
   min-width: 200px;
   max-width: 260px;
 }
+
+/* ============================================================
+   マスコット「やっくん」（タップで現在ページのかんたん説明）
+   タブバーの上・右下に常駐。アニメ実装値は yakkun-assets/README.md 準拠。
+   ============================================================ */
+/* stageと同じ幅に中央寄せしたfixedアンカー（タブバーと同じ手法） */
+.yakkun-anchor {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(58px + 10px + env(safe-area-inset-bottom)); /* タブバー高+余白+安全域 */
+  width: 100%;
+  max-width: var(--maxw);
+  z-index: 25; /* コンテンツより上・タブバー(30)より下 */
+  pointer-events: none; /* アンカー自体は透過（ボタンだけ受ける） */
+}
+.yakkun-wrap {
+  position: absolute;
+  right: 10px;
+  bottom: 0;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.yakkun {
+  position: relative;
+  width: 68px;
+  height: 63px; /* 578:532 の比率 */
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  /* 淡い影で背景から浮かせる（白背景でも視認できるように） */
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.22));
+}
+.yakkun img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+/* まばたきオーバーレイ（closed画像に対する%配置。README指定値） */
+.yakkun .yk-blink {
+  inset: auto;
+  left: 33.85%;
+  top: 8.83%;
+  width: 16.61%;
+  height: 18.05%;
+  opacity: 0;
+  animation: yk-blink 4.4s linear infinite;
+}
+/* 4.4秒周期で約0.2秒（=約4.5%）だけ目を閉じる */
+@keyframes yk-blink {
+  0%,
+  95.4% {
+    opacity: 0;
+  }
+  95.5%,
+  99.9% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yakkun .yk-blink {
+    animation: none;
+  }
+}
+.yk-hide {
+  visibility: hidden;
+}
+/* 吹き出し */
+.yk-bubble {
+  position: relative;
+  max-width: 250px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14);
+  padding: 9px 12px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.yk-bubble .yk-name {
+  display: block;
+  font-size: 11px;
+  color: var(--brand-ink);
+  margin-bottom: 2px;
+}
+/* 吹き出しのしっぽ（やっくん側=右下向き） */
+.yk-bubble::after {
+  content: '';
+  position: absolute;
+  right: 24px;
+  bottom: -6px;
+  width: 10px;
+  height: 10px;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  transform: rotate(45deg);
+}
