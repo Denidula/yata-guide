@@ -493,7 +493,8 @@ body {
 
 /* デモ地点（縦積みリスト型chip） */
 .samples {
-  padding: 28px 20px 0;
+  /* 下24px: 最後のchipと出典フッターの間の統一余白（R2レビュー: 全画面24pxで統一） */
+  padding: 28px 20px 24px;
 }
 .chip-list {
   margin-top: 11px;
@@ -896,9 +897,9 @@ body {
   line-height: 1.5;
 }
 
-/* 次アクション導線 */
+/* 次アクション導線（下24px: 免責フッターとの統一余白。R2レビュー） */
 .next-cta {
-  margin: 18px 20px 0;
+  margin: 18px 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1246,7 +1247,8 @@ body {
    避難先リスト（地図画面・地図の下）
    ========================================================================= */
 .evac-list {
-  padding: 14px 16px 0;
+  /* 下24px: 出典フッターとの統一余白（R2レビュー。walknoteのmargin-bottomは0に集約） */
+  padding: 14px 16px 24px;
 }
 .evac-list .h-sec {
   margin-bottom: 3px;
@@ -1345,7 +1347,7 @@ body {
   margin-top: 8px;
 }
 .evac-walknote {
-  margin: 10px 0 4px;
+  margin: 10px 0 0;
   display: flex;
   gap: 8px;
   align-items: flex-start;
@@ -1778,9 +1780,9 @@ body {
    P2-W2: 計画カードの共有（QR/リンク）＋受信閲覧モード
    ============================================================ */
 
-/* 共有パネル（カード内・枠付きブロック） */
+/* 共有パネル（カード内・枠付きブロック。下24px=免責フッターとの統一余白） */
 .share-panel {
-  margin: 16px 20px 0;
+  margin: 16px 20px 24px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);

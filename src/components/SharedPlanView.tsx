@@ -86,7 +86,8 @@ export function SharedPlanView({
         </div>
       )}
 
-      <div className="next-cta" style={{ marginBottom: 20 }}>
+      {/* 下余白は .next-cta の共通24pxに統一 */}
+      <div className="next-cta">
         <button className="btn big" onClick={adopt} disabled={saving}>
           {STRINGS.share.adoptBtn}
         </button>
