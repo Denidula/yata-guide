@@ -26,7 +26,8 @@ export type ErrorCode =
   | 'geocode_failed' // ジオコーディング両系失敗
   | 'geocode_offline' // オフラインで住所の新規検索に失敗（ネット必須の操作）
   | 'out_of_area' // PIP判定対象外（島しょ部等）
-  | 'geo_denied' // 位置情報の許可拒否／取得失敗
+  | 'geo_denied' // 位置情報の許可拒否（ブラウザ/OS設定での明示的な拒否）
+  | 'geo_failed' // 位置情報の取得失敗・タイムアウト（拒否以外）
   | 'geo_unavailable' // Geolocation非対応
   | 'generic'
 

@@ -47,8 +47,9 @@ export function Home() {
       (pos) => {
         void resolveByCoords(pos.coords.latitude, pos.coords.longitude)
       },
-      () => {
-        setGeoError('geo_denied')
+      (err) => {
+        // 1=PERMISSION_DENIED（設定案内を出す）／2=POSITION_UNAVAILABLE・3=TIMEOUT（再試行案内）
+        setGeoError(err.code === err.PERMISSION_DENIED ? 'geo_denied' : 'geo_failed')
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
     )
