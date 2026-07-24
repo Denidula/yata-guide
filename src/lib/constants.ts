@@ -180,6 +180,11 @@ export const STRINGS = {
     feat3: '機内モードでも\n使える',
     loading: '危険度を判定中…',
     loadingCancel: 'キャンセル',
+    /**
+     * 現在地判定時の表示住所。ローカルPIPで特定した町丁目を添える
+     * （逆ジオコーディングは使わない＝GPS座標を外部送信しない方針のまま。R2レビュー決定）
+     */
+    currentLocationAt: (wardTown: string) => `現在地（${wardTown}）`,
   },
 
   card: {

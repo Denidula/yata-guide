@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { geocode } from '../lib/geocode'
 import { locateChomoku } from '../lib/pip'
 import { resolveRisk, type RiskInfo } from '../lib/risk'
+import { STRINGS } from '../lib/constants'
 
 /** 座標＋ジオコーディング精度。 */
 export interface Coords {
@@ -160,8 +161,12 @@ async function resolveFromCoords(
     set({ uiStatus: { kind: 'error', code: 'out_of_area' } })
     return
   }
+  // 現在地判定は住所文字列を持たないため、ローカルPIPで特定した町丁目を表示住所に添える
+  // （「現在地（中野区中野5丁目）」。逆ジオ不使用＝座標の外部送信ゼロは維持。R2レビュー決定）
+  const displayAddress =
+    source === 'gps' ? STRINGS.home.currentLocationAt(`${risk.ward}${risk.town}`) : address
   set({
-    address,
+    address: displayAddress,
     coords,
     chomokuId: pip.chomokuId,
     risk,
