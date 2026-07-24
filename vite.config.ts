@@ -14,7 +14,7 @@ export default defineConfig({
       manifest: {
         name: 'ヤタガラス',
         short_name: 'ヤタガラス',
-        description: 'わが家の避難計画、3秒で。',
+        description: 'わが家の避難計画、2秒で。',
         theme_color: '#0017C1',
         background_color: '#ffffff',
         display: 'standalone',

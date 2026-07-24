@@ -157,13 +157,13 @@ export function groundToLiquefaction(ground: string): number {
 export const STRINGS = {
   app: {
     name: 'わが家の避難計画',
-    tagline: '3秒で。／ 東京都版（デモ）',
+    tagline: '2秒で。／ 東京都版（デモ）',
     logo: '防',
   },
 
   home: {
     catchLine1: '住所を入れるだけ。',
-    catchEmphasis: '3秒で',
+    catchEmphasis: '2秒で',
     catchLine2: 'わが家の危険度。',
     sub: '地震のとき、わが家はどのくらい危ない？ どこへ逃げる？\n住所か現在地から、今すぐ確認できます。',
     addrLabel: '住所を入力（丁目まで）',
@@ -357,7 +357,7 @@ export const STRINGS = {
     ariaLabel: 'やっくん（このページのかんたん説明）',
     name: 'やっくん',
     byView: {
-      home: 'ここはホーム！住所を入れるか、下のデモ地点を押すと、おうちの危険度を3秒で調べるよ。',
+      home: 'ここはホーム！住所を入れるか、下のデモ地点を押すと、おうちの危険度を2秒で調べるよ。',
       card: 'これはおうちの危険度カード。ランクは都内の中での比べっこだよ。下のボタンから避難計画も作れる！',
       plan: 'ここは避難計画のページ。家族のことを教えてくれたら、合う避難先と持ち出し品をぼくが選ぶよ。QRで家族にも渡してね！',
       map: '災害の種類ごとに、危ない場所と避難先を地図で見られるよ。緑のピンが避難場所、青が避難所！',

@@ -16,7 +16,7 @@ import { Icon } from './Icon'
 /**
  * ホーム／住所入力画面（R1）。
  * 白地・左寄せリード＋入力フォーム＋デモ地点の縦積みリスト型chip。
- * 「住所入力→ボタン1回 / 現在地1回 / chip1回」で危険度カードへ到達する（3秒体験の核）。
+ * 「住所入力→ボタン1回 / 現在地1回 / chip1回」で危険度カードへ到達する（2秒体験の核）。
  */
 export function Home() {
   const addressInput = usePlanStore((s) => s.addressInput)
