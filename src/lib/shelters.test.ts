@@ -5,8 +5,10 @@ import {
   haversineM,
   nearest,
   nearestOne,
+  orderHospitals,
   walkMinutes,
   type Facility,
+  type HospitalFacility,
 } from './shelters'
 
 function facility(over: Partial<Facility>): Facility {
@@ -97,6 +99,49 @@ describe('filterAreasByHazard', () => {
     ])
     // disasters未定義（避難所）は含まれない
     expect(filterAreasByHazard([facility({})], 'quake')).toEqual([])
+  })
+})
+
+function hospital(over: Partial<HospitalFacility>): HospitalFacility {
+  return {
+    kind: 'hospital',
+    type: 'renkei',
+    name: 'テスト病院',
+    address: '中野区中野1-1-1',
+    tel: '03-0000-0000',
+    area: '区西部',
+    tertiaryEr: false,
+    lng: 139.66,
+    lat: 35.7,
+    ...over,
+  }
+}
+
+describe('orderHospitals', () => {
+  const origin = { lng: 139.7, lat: 35.7 }
+  // 連携病院のほうが物理的に近い配置にして「拠点優先」を検証する
+  const nearRenkei = hospital({ type: 'renkei', name: '近い連携', lng: 139.701, lat: 35.7 })
+  const farKyoten = hospital({ type: 'kyoten', name: '遠い拠点', lng: 139.75, lat: 35.7 })
+  const farthestKyoten = hospital({ type: 'kyoten', name: 'もっと遠い拠点', lng: 139.8, lat: 35.7 })
+
+  it('距離では劣っても災害拠点病院を先に並べる', () => {
+    const got = orderHospitals(origin, [nearRenkei, farthestKyoten, farKyoten], 2)
+    expect(got.map((h) => h.name)).toEqual(['遠い拠点', 'もっと遠い拠点'])
+  })
+
+  it('拠点病院が足りない分だけ連携病院で埋める', () => {
+    const got = orderHospitals(origin, [nearRenkei, farKyoten], 2)
+    expect(got.map((h) => h.name)).toEqual(['遠い拠点', '近い連携'])
+    expect(got[0].distanceM).toBeGreaterThan(got[1].distanceM) // 距離順ではない
+  })
+
+  it('拠点病院だけで足りるときは連携病院を混ぜない', () => {
+    const got = orderHospitals(origin, [nearRenkei, farKyoten, farthestKyoten], 1)
+    expect(got.map((h) => h.type)).toEqual(['kyoten'])
+  })
+
+  it('該当なしなら空配列', () => {
+    expect(orderHospitals(origin, [], 2)).toEqual([])
   })
 })
 

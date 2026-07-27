@@ -23,9 +23,11 @@ import {
   activeBarrierFree,
   AREAS_URL,
   CENTERS_URL,
+  HOSPITALS_URL,
   type Facility,
   type FacilityWithDistance,
 } from '../lib/shelters'
+import { loadHydrantsAround } from '../lib/hydrants'
 
 /** 東京都心（皇居付近）を初期表示範囲とする。 */
 const INITIAL_CENTER: [number, number] = [139.75, 35.69]
@@ -50,6 +52,19 @@ const SRC_AREAS = 'evac-areas'
 const SRC_CENTERS = 'evac-centers'
 const LYR_AREAS = 'evac-areas-circle'
 const LYR_CENTERS = 'evac-centers-circle'
+/** 災害拠点病院・消火栓のソース/レイヤーID。 */
+const SRC_HOSPITALS = 'hospitals'
+const LYR_HOSPITALS = 'hospitals-circle'
+const SRC_HYDRANTS = 'hydrants'
+const LYR_HYDRANTS = 'hydrants-circle'
+
+/**
+ * 消火栓を表示し始めるズーム。
+ * 木密地域ではz14で画面内に数百件入り、地域危険度の色（主役）が埋もれるため15にしている。
+ * 「自宅のすぐ近くにあるか」を見る補助情報で広域表示の必要がなく、
+ * 距離自体は危険度カードの「最寄りの消火栓 約○m」で常に読める。
+ */
+const HYDRANT_MIN_ZOOM = 15
 
 type LayerLoadState = 'idle' | 'loading' | 'ready' | 'degraded'
 
@@ -120,6 +135,22 @@ function rankColorExpression(prop: string): maplibregl.ExpressionSpecification {
 const AREA_COLOR = '#0f7a4d'
 /** 避難所ピンの色（青）。R1: 避難所は #0B4F9E。 */
 const CENTER_COLOR = '#0b4f9e'
+/** 災害拠点病院ピンの色（赤紫寄りの赤。危険度ランクの赤 #D50000 と紛れない色味にする）。 */
+const HOSPITAL_COLOR = '#b3123c'
+/** 消火栓ピンの色（橙。小さめの点で低目立ちにする）。 */
+const HYDRANT_COLOR = '#c25a00'
+
+/**
+ * わが家マーカーのDOM。
+ * 避難所（青の塗り丸）と紛れないよう、施設ピンとは図と地を反転させて
+ * 「白抜き＋太い青リング＋家アイコン」にしている（色ではなく形と塗り方で区別する）。
+ */
+const HOME_PIN_HTML =
+  '<span class="dot" aria-hidden="true">' +
+  '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" ' +
+  'stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/></svg>' +
+  '</span><span class="tag">自宅</span>'
 
 /** HTMLエスケープ（ポップアップの施設名・住所に外部データを埋め込むため）。 */
 function esc(s: string): string {
@@ -196,6 +227,59 @@ function facilityPopupHTML(
     distRow +
     disasterRow +
     bfRow +
+    `</div>`
+  )
+}
+
+/** 病院ポップアップのHTML。 */
+function hospitalPopupHTML(
+  h: {
+    name: string
+    address: string
+    tel: string
+    area: string
+    type: 'kyoten' | 'renkei'
+    tertiaryEr: boolean
+    lng: number
+    lat: number
+  },
+  origin: { lng: number; lat: number } | null,
+): string {
+  const kindWord =
+    h.type === 'kyoten' ? STRINGS.map.popKindHospital : STRINGS.map.popKindHospitalRenkei
+  const dLine = distanceLine(origin, h.lng, h.lat)
+  const rows = [
+    h.tertiaryEr
+      ? `<div class="ev-pop-line"><span class="k">${STRINGS.map.popTertiaryEr}</span></div>`
+      : '',
+    h.area ? `<div class="ev-pop-line"><span class="k">${STRINGS.map.popAreaLabel}</span>${esc(h.area)}</div>` : '',
+    h.tel ? `<div class="ev-pop-line"><span class="k">${STRINGS.map.popTelLabel}</span>${esc(h.tel)}</div>` : '',
+  ].join('')
+
+  return (
+    `<div class="ev-pop">` +
+    `<div class="ev-pop-kind" style="color:${HOSPITAL_COLOR}"><span class="dot" style="background:${HOSPITAL_COLOR}"></span>${kindWord}</div>` +
+    `<div class="ev-pop-name">${esc(h.name)}</div>` +
+    `<div class="ev-pop-addr">${esc(h.address)}</div>` +
+    (dLine ? `<div class="ev-pop-dist">${esc(dLine)}</div>` : '') +
+    rows +
+    `<div class="ev-pop-note">${esc(STRINGS.hospital.roleNote)}</div>` +
+    `</div>`
+  )
+}
+
+/** 消火栓ポップアップのHTML（元データは座標のみ）。 */
+function hydrantPopupHTML(
+  origin: { lng: number; lat: number } | null,
+  lng: number,
+  lat: number,
+): string {
+  const dLine = distanceLine(origin, lng, lat)
+  return (
+    `<div class="ev-pop">` +
+    `<div class="ev-pop-kind" style="color:${HYDRANT_COLOR}"><span class="dot" style="background:${HYDRANT_COLOR}"></span>${STRINGS.map.popKindHydrant}</div>` +
+    `<div class="ev-pop-addr">${esc(STRINGS.map.popHydrantNote)}</div>` +
+    (dLine ? `<div class="ev-pop-dist">${esc(dLine)}</div>` : '') +
     `</div>`
   )
 }
@@ -317,7 +401,7 @@ export function MapView() {
       const el = document.createElement('div')
       el.className = 'home-pin'
       el.setAttribute('aria-label', 'わが家の位置')
-      el.innerHTML = '<span class="dot" aria-hidden="true"></span><span class="tag">自宅</span>'
+      el.innerHTML = HOME_PIN_HTML
       homeMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([c.lng, c.lat])
         .addTo(map)
@@ -347,7 +431,15 @@ export function MapView() {
         await addHazardLayers(map)
         // await中にタブ切替等でunmountされていたら破棄済みmapに触らない（レビューM-13）
         if (mapRef.current !== map) return
+        // 消火栓・病院を先に敷いてから避難先ピンを重ねる（避難先を最前面に保つ）
+        addFacilityLayers(map)
         addEvacuationLayers(map)
+        const origin = originRef.current
+        if (origin) {
+          await fillHydrants(map, origin).catch((e) =>
+            console.error('hydrant layer fill failed:', e),
+          )
+        }
       })()
     })
 
@@ -382,7 +474,7 @@ export function MapView() {
       const el = document.createElement('div')
       el.className = 'home-pin'
       el.setAttribute('aria-label', 'わが家の位置')
-      el.innerHTML = '<span class="dot" aria-hidden="true"></span><span class="tag">自宅</span>'
+      el.innerHTML = HOME_PIN_HTML
       homeMarkerRef.current = new maplibregl.Marker({ element: el, anchor: 'center' })
         .setLngLat([coords.lng, coords.lat])
         .addTo(map)
@@ -564,6 +656,89 @@ export function MapView() {
     map.on('mouseleave', LYR_CENTERS, cursorDefault)
   }
 
+  /**
+   * 消火栓（橙・小）と災害拠点病院（赤）のレイヤーを追加する。
+   * 消火栓は全都13万件を配れないため、hydrants.ts が自宅周辺3×3セルだけを読み、
+   * ここで setData に流し込む（URL直指定の既存パターンは使えない）。
+   * 避難先ピンより下に敷いて、避難先が隠れないようにする。
+   */
+  function addFacilityLayers(map: maplibregl.Map) {
+    // --- 消火栓（橙・最下層。拡大時のみ） ---
+    if (!map.getSource(SRC_HYDRANTS)) {
+      map.addSource(SRC_HYDRANTS, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+    }
+    if (!map.getLayer(LYR_HYDRANTS)) {
+      map.addLayer({
+        id: LYR_HYDRANTS,
+        type: 'circle',
+        source: SRC_HYDRANTS,
+        minzoom: HYDRANT_MIN_ZOOM,
+        paint: {
+          'circle-color': HYDRANT_COLOR,
+          'circle-opacity': 0.85,
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 14, 2, 16, 3.5, 18, 5],
+          'circle-stroke-width': 0.8,
+          'circle-stroke-color': '#ffffff',
+        },
+      })
+    }
+
+    // --- 災害拠点病院（赤） ---
+    if (!map.getSource(SRC_HOSPITALS)) {
+      map.addSource(SRC_HOSPITALS, { type: 'geojson', data: HOSPITALS_URL })
+    }
+    if (!map.getLayer(LYR_HOSPITALS)) {
+      map.addLayer({
+        id: LYR_HOSPITALS,
+        type: 'circle',
+        source: SRC_HOSPITALS,
+        paint: {
+          'circle-color': HOSPITAL_COLOR,
+          'circle-opacity': 0.9,
+          // 拠点病院は連携病院より一回り大きく（色だけに頼らない区別）
+          'circle-radius': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            10,
+            ['case', ['==', ['get', 'type'], 'kyoten'], 3, 2],
+            13,
+            ['case', ['==', ['get', 'type'], 'kyoten'], 5.5, 3.5],
+            16,
+            ['case', ['==', ['get', 'type'], 'kyoten'], 9, 6],
+          ],
+          'circle-stroke-width': 1.4,
+          'circle-stroke-color': '#ffffff',
+        },
+      })
+    }
+
+    map.on('click', LYR_HOSPITALS, hospitalClickHandler)
+    map.on('mouseenter', LYR_HOSPITALS, cursorPointer)
+    map.on('mouseleave', LYR_HOSPITALS, cursorDefault)
+    map.on('click', LYR_HYDRANTS, hydrantClickHandler)
+    map.on('mouseenter', LYR_HYDRANTS, cursorPointer)
+    map.on('mouseleave', LYR_HYDRANTS, cursorDefault)
+  }
+
+  /** わが家周辺の消火栓を読み込んで消火栓ソースに流し込む。 */
+  async function fillHydrants(map: maplibregl.Map, origin: { lng: number; lat: number }) {
+    const pts = await loadHydrantsAround(origin)
+    const src = map.getSource(SRC_HYDRANTS) as maplibregl.GeoJSONSource | undefined
+    if (!src) return
+    src.setData({
+      type: 'FeatureCollection',
+      features: pts.map((p) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
+        properties: {},
+      })),
+    })
+  }
+
   /** 避難場所レイヤーに「現在の災害タブに対応するもの」だけを残すフィルタを適用。 */
   function applyAreaFilter(map: maplibregl.Map, active: HazardKey) {
     if (!map.getLayer(LYR_AREAS)) return
@@ -585,6 +760,42 @@ export function MapView() {
   // 避難所ピンのクリック → ポップアップ。
   const centerClickHandler = useMemo(
     () => (e: maplibregl.MapLayerMouseEvent) => showFacilityPopupFromEvent(e, 'center'),
+    [],
+  )
+  // 病院ピンのクリック → ポップアップ。
+  const hospitalClickHandler = useMemo(
+    () => (e: maplibregl.MapLayerMouseEvent) => {
+      const feat = e.features?.[0]
+      if (!feat) return
+      const p = feat.properties as Record<string, unknown>
+      const [lng, lat] = (feat.geometry as GeoJSON.Point).coordinates as [number, number]
+      showPopupHTML(
+        hospitalPopupHTML(
+          {
+            name: String(p.name ?? ''),
+            address: String(p.address ?? ''),
+            tel: String(p.tel ?? ''),
+            area: String(p.area ?? ''),
+            type: p.type === 'kyoten' ? 'kyoten' : 'renkei',
+            tertiaryEr: p.tertiary_er === true,
+            lng,
+            lat,
+          },
+          originRef.current,
+        ),
+        [lng, lat],
+      )
+    },
+    [],
+  )
+  // 消火栓のクリック → ポップアップ（属性を持たないので位置と注記のみ）。
+  const hydrantClickHandler = useMemo(
+    () => (e: maplibregl.MapLayerMouseEvent) => {
+      const feat = e.features?.[0]
+      if (!feat) return
+      const [lng, lat] = (feat.geometry as GeoJSON.Point).coordinates as [number, number]
+      showPopupHTML(hydrantPopupHTML(originRef.current, lng, lat), [lng, lat])
+    },
     [],
   )
 
@@ -628,9 +839,13 @@ export function MapView() {
 
   /** 施設ポップアップを（使い回しの単一Popupで）開く。 */
   function openFacilityPopup(f: Facility, lngLat: [number, number]) {
+    showPopupHTML(facilityPopupHTML(f, originRef.current), lngLat)
+  }
+
+  /** 任意のHTMLを使い回しの単一Popupで開く（避難先・病院・消火栓で共用）。 */
+  function showPopupHTML(html: string, lngLat: [number, number]) {
     const map = mapRef.current
     if (!map) return
-    const html = facilityPopupHTML(f, originRef.current)
     if (!popupRef.current) {
       popupRef.current = new maplibregl.Popup({ closeButton: true, offset: 10, maxWidth: '260px' })
     }
@@ -893,6 +1108,14 @@ function MapLegend({ hazard, label }: { hazard: HazardKey; label: string }) {
         {STRINGS.map.legendEvacCenter}
       </span>
       <span className="lg-row">
+        <span className="sw hospital" style={{ background: HOSPITAL_COLOR }} aria-hidden="true" />✚{' '}
+        {STRINGS.map.legendHospital}
+      </span>
+      <span className="lg-row">
+        <span className="sw hydrant" style={{ background: HYDRANT_COLOR }} aria-hidden="true" />
+        {STRINGS.map.legendHydrant}
+      </span>
+      <span className="lg-row">
         <span className="sw you" aria-hidden="true" />
         {STRINGS.map.legendYou}
       </span>
@@ -919,6 +1142,7 @@ function MapLegend({ hazard, label }: { hazard: HazardKey; label: string }) {
           ))}
         </span>
       )}
+      <span className="lg-full">{STRINGS.map.legendHydrantScope}</span>
       <span className="lg-full">{STRINGS.map.legendNoData}</span>
     </div>
   )

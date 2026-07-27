@@ -11,6 +11,8 @@
  *    適合施設を距離順で先頭に置く。比較用に無条件の最寄りも併記する。
  *  - 要配慮属性がある世帯には福祉避難所（二次避難所）の最寄り候補を添える。
  *    「直接向かう場所ではなく開設後に案内される二次避難先」の注記（STRINGS.fukushi.roleNote）が必須。
+ *  - けが・急病の搬送先（災害拠点病院）は世帯構成によらず全世帯に出す。
+ *    軽症で自己判断して向かう場所ではない旨の注記（STRINGS.hospital.roleNote）が必須。
  */
 
 import {
@@ -23,12 +25,14 @@ import {
 import {
   filterAreasByHazard,
   findNearestFukushi,
+  findNearestHospitals,
   loadAreas,
   loadCenters,
   nearest,
   type BarrierFree,
   type FacilityWithDistance,
   type FukushiSearchResult,
+  type HospitalWithDistance,
 } from './shelters'
 import type { FamilyProfile } from '../store/useProfileStore'
 
@@ -97,6 +101,8 @@ export interface EvacuationPlan {
   requiredBf: Array<keyof BarrierFree>
   /** 福祉避難所（要配慮メンバーがいるときのみ検索。いなければ null） */
   fukushi: FukushiSearchResult | null
+  /** けが・急病のときの搬送先候補（災害拠点病院を優先。取得失敗時は空配列） */
+  hospitals: HospitalWithDistance[]
   /** 持ち出し品チェックリスト（基本＋属性別） */
   kit: { basic: KitItem[]; sections: KitSection[] }
 }
@@ -144,8 +150,12 @@ export async function buildPlan(
   // 3) 福祉避難所（二次避難所）: 要配慮メンバーがいる世帯のみ
   const fukushi = hasVulnerableMember(profile) ? await findNearestFukushi(origin, ward, 2) : null
 
-  // 4) 持ち出し品: 基本＋属性別
+  // 4) けが・急病のときの搬送先: 災害拠点病院は世帯構成によらず必要なので無条件。
+  //    データ取得に失敗してもカード全体は出したいので空配列に倒す。
+  const hospitals = await findNearestHospitals(origin, 2).catch(() => [])
+
+  // 5) 持ち出し品: 基本＋属性別
   const kit = { basic: KIT_BASIC, sections: kitSectionsFor(kitAttributesFor(profile)) }
 
-  return { area, centers: candidates, requiredBf, fukushi, kit }
+  return { area, centers: candidates, requiredBf, fukushi, hospitals, kit }
 }

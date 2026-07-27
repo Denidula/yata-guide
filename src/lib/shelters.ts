@@ -9,6 +9,9 @@
  *  - /data/fukushi_hinanjo.geojson    … 福祉避難所（二次避難所）938件・24自治体（23区＋清瀬市、Point）
  *      muni, name, address, category, source（各区市の公表資料を加工）
  *  - /data/fukushi_hinanjo_coverage.json … 福祉避難所データを公開済みの自治体リスト（covered）
+ *  - /data/hospitals.geojson          … 災害拠点病院83＋災害拠点連携病院138＝221施設（Point）
+ *      name, address, tel, area, type(kyoten|renkei), beds, tertiary_er
+ *      （東京都保健医療局の一覧を加工。元データに座標が無いためジオコーディングで付与）
  *
  * 設計（w3_status.md 準拠）:
  *  - 避難場所は「今まさに逃げる先」として災害種別フラグでフィルタ。
@@ -401,4 +404,119 @@ export async function findNearestFukushi(
   }
   const inMuni = facilities.filter((f) => f.muni === muni)
   return { status: 'covered', muni, nearest: nearest(origin, inMuni, n) }
+}
+
+// ─────────────────────────────────────────────────────────────
+// 災害拠点病院・災害拠点連携病院
+// ─────────────────────────────────────────────────────────────
+
+/** 災害拠点病院等GeoJSONのURL（MapLibreのgeojsonソースからも直接参照する）。 */
+export const HOSPITALS_URL = '/data/hospitals.geojson'
+
+/**
+ * 災害時に重症者を受け入れる病院。
+ * kyoten … 災害拠点病院（83施設）。重症者の受け入れ・災害医療の拠点
+ * renkei … 災害拠点連携病院（138施設）。拠点病院を補完し中等症等を受け入れる
+ * 軽症で自己判断して向かう場所ではないため、表示時は必ず
+ * STRINGS.hospital.roleNote の注記を添える。
+ */
+export interface HospitalFacility {
+  kind: 'hospital'
+  type: 'kyoten' | 'renkei'
+  name: string
+  address: string
+  /** 電話番号（ハイフン区切りに正規化済み） */
+  tel: string
+  /** 二次保健医療圏（例: 区中央部） */
+  area: string
+  /** 三次救急（救命救急センター等）に該当するか。連携病院は常にfalse */
+  tertiaryEr: boolean
+  lng: number
+  lat: number
+}
+
+/** 距離付き病院（最寄り結果用）。 */
+export type HospitalWithDistance = HospitalFacility & { distanceM: number; walkMin: number }
+
+/** GeoJSONの生プロパティ（病院）。 */
+type HospitalProps = {
+  name: string
+  address: string
+  tel: string
+  area: string
+  type: 'kyoten' | 'renkei'
+  beds: string
+  tertiary_er: boolean
+  mark: string
+}
+
+let hospitalsCache: HospitalFacility[] | null = null
+let hospitalsInflight: Promise<HospitalFacility[]> | null = null
+
+/** 災害拠点病院等（221施設）を取得＋メモリキャッシュ。多重fetch防止。 */
+export async function loadHospitals(): Promise<HospitalFacility[]> {
+  if (hospitalsCache) return hospitalsCache
+  if (hospitalsInflight) return hospitalsInflight
+  hospitalsInflight = fetch(HOSPITALS_URL)
+    .then((res) => {
+      if (!res.ok) throw new Error(`hospitals geojson fetch failed: ${res.status}`)
+      return res.json() as Promise<FC<HospitalProps>>
+    })
+    .then((fc) => {
+      const out: HospitalFacility[] = []
+      for (const f of fc.features) {
+        if (!f.geometry || f.geometry.type !== 'Point') continue
+        const [lng, lat] = f.geometry.coordinates
+        if (typeof lng !== 'number' || typeof lat !== 'number') continue
+        const p = f.properties
+        out.push({
+          kind: 'hospital',
+          type: p.type,
+          name: p.name,
+          address: p.address,
+          tel: p.tel,
+          area: p.area,
+          tertiaryEr: p.tertiary_er === true,
+          lng,
+          lat,
+        })
+      }
+      hospitalsCache = out
+      hospitalsInflight = null
+      return out
+    })
+    .catch((err) => {
+      hospitalsInflight = null
+      throw err
+    })
+  return hospitalsInflight
+}
+
+/**
+ * 病院リストから提示順N件を選ぶ（純関数。取得と分離してテスト可能にしている）。
+ * 単純な距離順ではなく災害拠点病院（kyoten）を先に置き、足りない分だけ
+ * 連携病院（renkei）で埋める。拠点病院が重症者受け入れの一次窓口として
+ * 位置づけられているため。
+ */
+export function orderHospitals(
+  origin: { lng: number; lat: number },
+  all: HospitalFacility[],
+  n: number,
+): HospitalWithDistance[] {
+  const kyoten = nearest(origin, all.filter((h) => h.type === 'kyoten'), n)
+  if (kyoten.length >= n) return kyoten
+  const renkei = nearest(origin, all.filter((h) => h.type === 'renkei'), n - kyoten.length)
+  return [...kyoten, ...renkei]
+}
+
+/**
+ * わが家に近い病院をN件返す。
+ * @param origin わが家座標
+ * @param n 件数（既定2）
+ */
+export async function findNearestHospitals(
+  origin: { lng: number; lat: number },
+  n = 2,
+): Promise<HospitalWithDistance[]> {
+  return orderHospitals(origin, await loadHospitals(), n)
 }

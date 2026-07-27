@@ -47,6 +47,9 @@
   --evac-center-ink: #0b4f9e;
   --evac-fukushi: #7a3e9d; /* 福祉避難所（二次避難所） */
   --evac-fukushi-ink: #63307f;
+  --evac-hospital: #b3123c; /* 災害拠点病院（危険度ランクの赤と紛れない色味） */
+  --evac-hospital-ink: #8f0e30;
+  --evac-hydrant: #c25a00; /* 消火栓 */
 
   --radius: 10px; /* カード外枠 */
   --radius-sm: 8px; /* ボタン・入力・カード内 */
@@ -758,6 +761,32 @@ body {
   line-height: 1.55;
 }
 
+/* ゲージ下の補足行（火災危険度の下の「最寄りの消火栓」など） */
+.gauge .g-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line-soft);
+  font-size: 12px;
+}
+.gauge .g-sub .gs-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-sub);
+}
+.gauge .g-sub .gs-val {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--evac-hydrant);
+}
+.gauge .g-sub .gs-none {
+  margin-left: auto;
+  color: var(--ink-faint);
+}
+
 /* 地盤・液状化 */
 .info-rows {
   margin: 16px 20px 0;
@@ -1025,13 +1054,21 @@ body {
   gap: 3px;
   cursor: default;
 }
+/* わが家＝白抜き＋太い青リング＋家アイコン。
+   避難所（#0B4F9E の塗り丸）と色が近く紛れるため、塗り方と形で差をつけている。
+   施設ピンより一回り大きくして、重なっても手前に見えるようにする。 */
 .home-pin .dot {
-  width: 18px;
-  height: 18px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: var(--brand);
-  border: 3px solid #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  background: #fff;
+  border: 3.5px solid var(--brand);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand);
+  box-sizing: border-box;
 }
 .home-pin .tag {
   background: var(--brand);
@@ -1091,12 +1128,21 @@ body {
 .map-legend .sw.center {
   border-radius: 2px;
 }
+.map-legend .sw.hospital {
+  border-radius: 50%;
+}
+.map-legend .sw.hydrant {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+/* わが家は地図上と同じ「白抜き＋青リング」で表す（塗り丸の施設ピンと区別） */
 .map-legend .sw.you {
   border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  border: 3px solid var(--brand);
+  box-shadow: none;
   box-sizing: border-box;
-  background: var(--brand);
+  background: #fff;
 }
 .map-legend .lg-full {
   flex-basis: 100%;
@@ -1208,6 +1254,15 @@ body {
   font-weight: 700;
   color: var(--brand-ink);
   margin-top: 5px;
+}
+/* 誤用防止の注記（病院ポップアップ等）。本文より一段落として見せる */
+.ev-pop-note {
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--ink-sub);
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-soft);
 }
 .ev-pop-line {
   font-size: 11.5px;
@@ -1620,6 +1675,12 @@ body {
 }
 .es-dist.fukushi {
   color: var(--evac-fukushi-ink);
+}
+.es-dot.hospital {
+  background: var(--evac-hospital);
+}
+.es-dist.hospital {
+  color: var(--evac-hospital-ink);
 }
 .plan-center {
   padding: 6px 0 0;

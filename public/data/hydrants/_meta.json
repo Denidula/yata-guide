@@ -1,0 +1,11 @@
+{
+ "source": "東京消防庁 消火栓及び防火水槽等（公設消火栓情報）",
+ "source_file": "syoukasenitizyouhou.xlsx",
+ "note": "公設上水道消火栓のみ。防火水槽は元データに含まれない。",
+ "cell_deg": 0.01,
+ "coord_digits": 5,
+ "coord_order": "lng,lat",
+ "cell_count": 1484,
+ "point_count": 133956,
+ "generated_at": "2026-07-27T03:31:38+00:00"
+}

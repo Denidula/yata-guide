@@ -19,6 +19,7 @@ import {
   nearestOne,
   type FacilityWithDistance,
 } from '../lib/shelters'
+import { nearestHydrant, type NearestHydrant } from '../lib/hydrants'
 
 /** 高ランク（4・5）に重ねる斜線（色覚多重符号化）。CSSの --hatch と同値。 */
 const HATCH =
@@ -56,10 +57,26 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
   const [nearCenter, setNearCenter] = useState<FacilityWithDistance | null>(null)
   // 避難所の取得失敗時にセクションごと無言で消さないためのフラグ（レビューM-12）
   const [centerFailed, setCenterFailed] = useState(false)
+  // 最寄りの消火栓（火災危険度の隣に出す）。
+  // 島しょ部には東京消防庁の公設消火栓データが無いため、「取得失敗」と
+  // 「周辺にデータが無い」を区別して表示する（無言で消さない）。
+  const [nearHydrant, setNearHydrant] = useState<NearestHydrant | null>(null)
+  const [hydrantState, setHydrantState] = useState<'loading' | 'ok' | 'none' | 'error'>('loading')
   useEffect(() => {
     if (!coords) return
     let alive = true
     const origin = { lng: coords.lng, lat: coords.lat }
+    setHydrantState('loading')
+    void nearestHydrant(origin)
+      .then((h) => {
+        if (!alive) return
+        setNearHydrant(h)
+        setHydrantState(h ? 'ok' : 'none')
+      })
+      .catch((e) => {
+        console.error('card nearest hydrant failed:', e)
+        if (alive) setHydrantState('error')
+      })
     void loadAreas()
       .then((areas) => {
         if (!alive) return
@@ -210,6 +227,23 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
           <div className="g-cap">
             {STRINGS.card.orderTemplate(risk.fire.order)}。{STRINGS.card.fireCapSuffix}
           </div>
+          {/* 最寄りの消火栓（初期消火の手がかり。火災危険度とセットで見せる） */}
+          <div className="g-sub">
+            <span className="gs-label">
+              <Icon name="fire" size={14} /> {STRINGS.hydrant.nearestLabel}
+            </span>
+            {hydrantState === 'ok' && nearHydrant ? (
+              <span className="gs-val">約{Math.round(nearHydrant.distanceM)}m</span>
+            ) : (
+              <span className="gs-none">
+                {hydrantState === 'error'
+                  ? STRINGS.hydrant.failed
+                  : hydrantState === 'none'
+                    ? STRINGS.hydrant.none
+                    : STRINGS.hydrant.loading}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -325,6 +359,7 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
 
       {/* 出典・免責フッター（常設） */}
       <div className="disclaimer">
+        {hydrantState === 'ok' && <p>{STRINGS.hydrant.attribution}</p>}
         <p>{STRINGS.disclaimer.card}</p>
       </div>
     </section>

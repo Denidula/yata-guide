@@ -19,6 +19,7 @@
 
 import { FetchSource, PMTiles, Protocol, type Source } from 'pmtiles'
 import { HAZARDS, TILES_BASE_URL } from './constants'
+import { hydrantCellUrls } from './hydrants'
 
 /**
  * Range断片の保存先キャッシュ名（データ版付き。レビューM-1）。
@@ -354,7 +355,10 @@ export async function precacheHomeArea(
   )
 
   // アプリデータ（/data/*）も進捗の分母に含める（100%到達後に処理が続かないように。レビューL-8）
-  const dataJobs = APP_DATA_URLS.map((u) => () => precacheDataUrl(u))
+  // 消火栓は全都13万件をグリッド分割しているため、自宅周辺セルだけを対象に加える。
+  const dataJobs = [...APP_DATA_URLS, ...hydrantCellUrls(origin)].map(
+    (u) => () => precacheDataUrl(u),
+  )
   const jobs = [...gsiJobs, ...hazardJobs, ...dataJobs]
   const total = jobs.length
   let done = 0
@@ -420,7 +424,10 @@ async function precacheGsiTile(z: number, x: number, y: number, force: boolean):
   }
 }
 
-/** 判定・避難先に必要なアプリデータ（/data/*）。 */
+/**
+ * 判定・避難先に必要なアプリデータ（/data/*）。自宅座標に依存しない静的ファイルのみ。
+ * 消火栓は自宅周辺セルだけを取るため、ここではなく hydrantCellUrls(origin) で足す。
+ */
 const APP_DATA_URLS = [
   '/data/chomoku_pip.geojson',
   '/data/chomoku_lookup.json',
@@ -428,6 +435,7 @@ const APP_DATA_URLS = [
   '/data/evacuation_centers.geojson',
   '/data/fukushi_hinanjo.geojson',
   '/data/fukushi_hinanjo_coverage.json',
+  '/data/hospitals.geojson',
 ]
 
 /** アプリデータ1件をキャッシュへ確実に載せる（保存成功まで確認）。 */

@@ -3,7 +3,11 @@ import { Icon } from './Icon'
 import { SharePanel } from './SharePanel'
 import { STRINGS } from '../lib/constants'
 import { buildPlan, type EvacuationPlan } from '../lib/plan'
-import { activeBarrierFree, type FukushiWithDistance } from '../lib/shelters'
+import {
+  activeBarrierFree,
+  type FukushiWithDistance,
+  type HospitalWithDistance,
+} from '../lib/shelters'
 import { KIT_SOURCE, type KitItem } from '../data/emergency_kit'
 import { useOfflinePackStore } from '../store/useOfflinePackStore'
 import type { FamilyProfile } from '../store/useProfileStore'
@@ -103,6 +107,22 @@ function FukushiRow({ f }: { f: FukushiWithDistance }) {
       <div className="fk-meta">
         <span className="fk-cat">{f.category}</span>
         <span className="es-dist fukushi">{STRINGS.map.distFmt(f.distanceM, f.walkMin)}</span>
+      </div>
+    </div>
+  )
+}
+
+/** 病院1件（けが・急病セクション）。福祉避難所の行と同じ構成に揃える。 */
+function HospitalRow({ h }: { h: HospitalWithDistance }) {
+  return (
+    <div className="fk-item">
+      <div className="fk-name">{h.name}</div>
+      <div className="fk-meta">
+        <span className="fk-cat">
+          {h.type === 'kyoten' ? STRINGS.hospital.word : STRINGS.hospital.renkeiWord}
+          {h.tertiaryEr && `・${STRINGS.map.popTertiaryEr}`}
+        </span>
+        <span className="es-dist hospital">{STRINGS.map.distFmt(h.distanceM, h.walkMin)}</span>
       </div>
     </div>
   )
@@ -326,6 +346,26 @@ export function PlanCard({
             )}
           </div>
         )}
+
+        {/* けが・急病のとき（災害拠点病院。世帯構成によらず全世帯に出す） */}
+        {plan.hospitals.length > 0 && (
+          <div className="es-row hospital">
+            <div className="es-head">
+              <span className="es-dot hospital" aria-hidden="true" />
+              <span className="es-label">
+                {plan.fukushi ? '④' : '③'} {STRINGS.plan.stepHospital}
+                <span className="es-sublabel">{STRINGS.plan.stepHospitalSub}</span>
+              </span>
+            </div>
+            {plan.hospitals.map((h) => (
+              <HospitalRow key={`${h.name}-${h.address}`} h={h} />
+            ))}
+            <div className="note-inline blue" style={{ marginTop: 10 }}>
+              <Icon name="info" size={15} />
+              <span>{STRINGS.hospital.roleNote}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 非常用持ち出し品（基本＋属性別） */}
@@ -404,6 +444,7 @@ export function PlanCard({
         <p>{KIT_SOURCE.attribution}</p>
         <p>{KIT_SOURCE.disclaimer}</p>
         {plan.fukushi && <p>{STRINGS.fukushi.attribution}</p>}
+        {plan.hospitals.length > 0 && <p>{STRINGS.hospital.attribution}</p>}
         <p>{STRINGS.disclaimer.card}</p>
       </div>
     </section>
