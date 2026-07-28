@@ -1027,6 +1027,56 @@ body {
 }
 
 /* ライブ地図の枠 */
+/* 地図の拡大表示（タブ＋地図＋凡例をまとめて全画面へ）。
+   iOS SafariはFullscreen APIが動画以外で使えないため、固定配置で実現する。
+   地図のリサイズはMapView側のResizeObserverが拾うので、ここではレイアウトだけ扱う。 */
+.map-stage {
+  display: contents; /* 通常時は存在しないかのように振る舞い、既存の縦積みを崩さない */
+}
+.map-stage.is-expanded {
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  inset: 0;
+  z-index: 40; /* タブバー(30)より上 */
+  height: 100vh;
+  height: 100dvh; /* iOSのURLバー伸縮に追従 */
+  background: var(--surface);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  overscroll-behavior: contain;
+}
+/* 拡大時は地図が余りを全部使う。サイズにtransitionは付けない
+   （ResizeObserverが連続発火して重くなるうえ、瞬時に切り替わるほうが体感が速い）。 */
+.map-stage.is-expanded .map-wrap-live {
+  height: auto;
+  flex: 1;
+  min-height: 0;
+}
+.map-stage.is-expanded .map-legend {
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+/* 凡例を畳んだときの細い帯 */
+.map-legend-bar {
+  display: flex;
+  padding: 6px 16px;
+  background: #f8f8fb;
+  border-bottom: 1px solid var(--line);
+}
+.legend-toggle {
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--brand-ink);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .map-wrap-live {
   position: relative;
   height: 340px;
@@ -1085,6 +1135,24 @@ body {
   position: absolute;
   right: 12px;
   bottom: 14px;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: var(--shadow-fab);
+  color: var(--brand);
+  z-index: 6;
+}
+
+/* 拡大／縮小ボタン（現在地FABの真上に同サイズで積む） */
+.map-expand {
+  position: absolute;
+  right: 12px;
+  bottom: calc(14px + 48px + 10px);
   width: 48px;
   height: 48px;
   border-radius: var(--radius);

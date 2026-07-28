@@ -315,6 +315,50 @@ export function MapView() {
   /** 各ハザードのタイル利用可否（ヘッダーfetch成功=true）。未判定はundefined。 */
   const availRef = useRef<Partial<Record<HazardKey, boolean>>>({})
 
+  // 地図の拡大表示。地図は340px固定で、地図画面全体は実測1,150px前後あるため
+  // 小さい端末ではスクロールしないと全体が見えない。拡大時はタブ＋地図＋凡例を
+  // 画面全体へ固定配置する（iOS SafariはFullscreen APIが使えないためCSSで行う）。
+  const [expanded, setExpanded] = useState(false)
+  const [legendOpen, setLegendOpen] = useState(false)
+  const expandBtnRef = useRef<HTMLButtonElement>(null)
+  const skipFirstFocus = useRef(true)
+
+  // 拡大表示中の付帯処理。地図のリサイズ自体は既存のResizeObserverが拾うので不要。
+  // ここでやるのは「抜け道の確保」と「背景の固定」。
+  useEffect(() => {
+    if (!expanded) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setExpanded(false)
+    }
+    const onPop = () => setExpanded(false)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden' // 背景のスクロール抜けを防ぐ（iOS）
+    window.addEventListener('keydown', onKey)
+    // Androidの戻る／PWAのスワイプバックを「アプリ離脱」ではなく「拡大解除」にする。
+    window.history.pushState({ ygMapExpanded: true }, '')
+    window.addEventListener('popstate', onPop)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('popstate', onPop)
+      document.body.style.overflow = prevOverflow
+      // ボタンやEscで閉じたときは自分が積んだ履歴を戻す。
+      // popstate経由で閉じたときは既に消費済みなので二重に戻さない。
+      if ((window.history.state as { ygMapExpanded?: boolean } | null)?.ygMapExpanded) {
+        window.history.back()
+      }
+    }
+  }, [expanded])
+
+  // 拡大／解除の直後はフォーカスをボタンへ戻す（キーボード操作で迷子にならないように）。
+  // 初回レンダー時は何も起きていないので奪わない。
+  useEffect(() => {
+    if (skipFirstFocus.current) {
+      skipFirstFocus.current = false
+      return
+    }
+    expandBtnRef.current?.focus()
+  }, [expanded])
+
   // 避難場所・避難所（読み込み後にstateへ。最寄りリストとポップアップ計算に使う）。
   const [areas, setAreas] = useState<Facility[] | null>(null)
   const [centers, setCenters] = useState<Facility[] | null>(null)
@@ -975,6 +1019,14 @@ export function MapView() {
         {risk ? `${risk.ward} ${risk.town} の避難先` : STRINGS.map.sectionPrefix}
       </div>
 
+      {/* 災害種別タブ＋地図＋凡例をひとまとめにして、拡大時はこの塊ごと全画面化する。
+          住所コンテキストは含めない（拡大時はわが家マーカーが位置を示すため、その分を地図に充てる）。 */}
+      <div
+        className={expanded ? 'map-stage is-expanded' : 'map-stage'}
+        {...(expanded
+          ? { role: 'dialog' as const, 'aria-modal': true, 'aria-label': '地図（拡大表示）' }
+          : {})}
+      >
       {/* 災害種別タブ（横スクロール・地図の上に独立配置） */}
       <div className="hazard-tabs" role="tablist" aria-label="災害の種類">
         {HAZARDS.map((h) => (
@@ -1008,6 +1060,17 @@ export function MapView() {
           </div>
         )}
 
+        {/* 拡大／縮小（FABの真上）。小さい端末で地図がスクロールに埋もれる問題への対処。 */}
+        <button
+          ref={expandBtnRef}
+          className="map-expand"
+          aria-label={expanded ? STRINGS.map.collapseBtn : STRINGS.map.expandBtn}
+          aria-expanded={expanded}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <Icon name={expanded ? 'collapse' : 'expand'} size={20} />
+        </button>
+
         {/* 現在地（わが家）に戻るFAB */}
         {coords && (
           <button className="map-fab" aria-label="現在地に戻る" onClick={flyToHome}>
@@ -1016,8 +1079,15 @@ export function MapView() {
         )}
       </div>
 
-      {/* 凡例（常設・地図下） */}
-      <MapLegend hazard={hazard} label={activeHaz.label} />
+      {/* 凡例。通常は常設、拡大時のみ折りたたみ（凡例は実測178px＝地図の半分を占めるため）。 */}
+      <MapLegend
+        hazard={hazard}
+        label={activeHaz.label}
+        collapsible={expanded}
+        open={!expanded || legendOpen}
+        onToggle={() => setLegendOpen((v) => !v)}
+      />
+      </div>
 
       {/* 最寄り避難先リスト（現在タブの避難場所3件＋最寄り避難所1件） */}
       <div className="evac-list">
@@ -1094,10 +1164,39 @@ export function MapView() {
  * ハザードのランク／深さ凡例も同バー内に折り返し掲載する。
  * 「空欄＝情報なし」の注記も維持（色覚配慮・凡例注記）。
  */
-function MapLegend({ hazard, label }: { hazard: HazardKey; label: string }) {
+function MapLegend({
+  hazard,
+  label,
+  collapsible = false,
+  open = true,
+  onToggle,
+}: {
+  hazard: HazardKey
+  label: string
+  /** 拡大表示中のみ折りたたむ。凡例は実測178px（SE）あり、畳まないと拡大の効果が半減する。 */
+  collapsible?: boolean
+  open?: boolean
+  onToggle?: () => void
+}) {
   const isQuake = hazard === 'quake'
+  if (collapsible && !open) {
+    return (
+      <div className="map-legend-bar">
+        <button className="legend-toggle" aria-expanded={false} onClick={onToggle}>
+          {STRINGS.map.legendShow}
+        </button>
+      </div>
+    )
+  }
   return (
     <div className="map-legend" aria-label={`凡例：${label}`}>
+      {collapsible && (
+        <span className="lg-full">
+          <button className="legend-toggle" aria-expanded={true} onClick={onToggle}>
+            {STRINGS.map.legendHide}
+          </button>
+        </span>
+      )}
       {/* 避難先ピン凡例（形状でも符号化） */}
       <span className="lg-row">
         <span className="sw area" style={{ background: AREA_COLOR }} aria-hidden="true" />▲{' '}
