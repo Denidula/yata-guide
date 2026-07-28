@@ -927,49 +927,13 @@ export function MapView() {
         }
       }
     }
-    setupQuakePopup(map, active)
   }
 
-  /** 地震タブのときだけ町丁目クリックポップアップを有効化。 */
-  function setupQuakePopup(map: maplibregl.Map, active: HazardKey) {
-    const fillId = 'hz-quake-fill'
-    if (!map.getLayer(fillId)) return
-    // 常にハンドラは1つ。activeに応じて内部で分岐。
-    map.off('click', fillId, quakeClickHandler)
-    map.off('mouseenter', fillId, cursorPointer)
-    map.off('mouseleave', fillId, cursorDefault)
-    if (active === 'quake') {
-      map.on('click', fillId, quakeClickHandler)
-      map.on('mouseenter', fillId, cursorPointer)
-      map.on('mouseleave', fillId, cursorDefault)
-    }
-  }
-
-  // 町丁目（地域危険度）クリックポップアップ。避難先ポップアップと同じ単一Popupを使う。
-  const quakeClickHandler = useMemo(
-    () => (e: maplibregl.MapLayerMouseEvent) => {
-      const map = mapRef.current
-      if (!map) return
-      const f = e.features?.[0]
-      if (!f) return
-      const p = f.properties as Record<string, unknown>
-      const town = (p['町丁目名'] as string) ?? ''
-      const ward = (p['区市町村名'] as string) ?? ''
-      const rank = Number(p['総合_ラ'])
-      const color = RANK_COLOR[rank] ?? '#888'
-      const html =
-        `<div class="hz-pop">` +
-        `<div class="hz-pop-t">${esc(ward)} ${esc(town)}</div>` +
-        `<div class="hz-pop-r"><span class="hz-pop-sw" style="background:${color}"></span>` +
-        `総合危険度 ランク${Number.isFinite(rank) ? rank : '—'}</div>` +
-        `</div>`
-      if (!popupRef.current) {
-        popupRef.current = new maplibregl.Popup({ closeButton: true, offset: 8, maxWidth: '240px' })
-      }
-      popupRef.current.setLngLat(e.lngLat).setHTML(html).addTo(map)
-    },
-    [],
-  )
+  // 危険度の面レイヤーにはクリックハンドラを付けない。
+  // 以前は地震タブで町丁目のポップアップ（区市町村名＋総合ランク）を出していたが、
+  // 面はピンより下にあっても独立にクリック判定されるため、避難場所を狙ったタップが
+  // わずかに外れると面のポップアップに吸われていた（実機で確認）。
+  // ランクは塗りの色と凡例、および危険度カードで十分に伝わるので、面の説明は出さない。
 
   // --- タブ切替でレイヤー可視性＋避難場所フィルタを更新 ---
   useEffect(() => {
