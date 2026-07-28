@@ -1190,27 +1190,41 @@ body {
   flex: none;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
+/* スウォッチは地図の描画と1対1に対応させる。地図側は全て円で描いており、
+   区別は「塗りの大小」と「白抜きかどうか」で付けている。四角や▲■✚は使わない。 */
 .map-legend .sw.area {
-  border-radius: 50%;
+  border-radius: 50%; /* 避難場所＝塗りの大きい丸 */
 }
 .map-legend .sw.center {
-  border-radius: 2px;
+  width: 9px; /* 避難所＝塗りの小さい丸（地図側も一段小さい半径） */
+  height: 9px;
+  border-radius: 50%;
 }
+/* 病院＝白抜き＋太い赤リング（地図側と同じ図地反転。色は inline style で当てる） */
 .map-legend .sw.hospital {
   border-radius: 50%;
+  border: 3px solid currentColor;
+  background: #fff;
+  box-shadow: none;
+  box-sizing: border-box;
 }
 .map-legend .sw.hydrant {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
 }
-/* わが家は地図上と同じ「白抜き＋青リング」で表す（塗り丸の施設ピンと区別） */
+/* わが家は地図上と同じ「白抜き＋青リング＋家アイコン」で表す */
 .map-legend .sw.you {
   border-radius: 50%;
-  border: 3px solid var(--brand);
+  border: 2.5px solid var(--brand);
   box-shadow: none;
   box-sizing: border-box;
   background: #fff;
+  width: 15px;
+  height: 15px;
+  display: grid;
+  place-items: center;
+  color: var(--brand);
 }
 .map-legend .lg-full {
   flex-basis: 100%;

@@ -662,9 +662,11 @@ export function MapView() {
         type: 'circle',
         source: SRC_CENTERS,
         paint: {
+          // 避難所は「塗りの小さい丸」。避難場所（塗りの大きい丸）と大きさで差をつけ、
+          // 色を区別できなくても見分けられるようにする。
           'circle-color': CENTER_COLOR,
           'circle-opacity': 0.85,
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 13, 4.5, 16, 8],
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 2, 13, 3.8, 16, 6.5],
           'circle-stroke-width': 1.2,
           'circle-stroke-color': '#ffffff',
         },
@@ -740,8 +742,11 @@ export function MapView() {
         type: 'circle',
         source: SRC_HOSPITALS,
         paint: {
-          'circle-color': HOSPITAL_COLOR,
-          'circle-opacity': 0.9,
+          // 病院は「白抜き＋太いリング」。わが家マーカーと同じ図地反転の扱いで、
+          // 塗り丸の避難先（避難場所・避難所）とひと目で別物に見えるようにする
+          // ＝「塗り＝逃げる先／白抜き＝逃げる先ではない地点」という一貫した約束。
+          'circle-color': '#ffffff',
+          'circle-opacity': 1,
           // 拠点病院は連携病院より一回り大きく（色だけに頼らない区別）
           'circle-radius': [
             'interpolate',
@@ -754,8 +759,8 @@ export function MapView() {
             16,
             ['case', ['==', ['get', 'type'], 'kyoten'], 9, 6],
           ],
-          'circle-stroke-width': 1.4,
-          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 10, 1.4, 13, 2.2, 16, 3.2],
+          'circle-stroke-color': HOSPITAL_COLOR,
         },
       })
     }
@@ -1197,17 +1202,19 @@ function MapLegend({
           </button>
         </span>
       )}
-      {/* 避難先ピン凡例（形状でも符号化） */}
+      {/* 避難先ピン凡例。スウォッチは地図の描画と1対1で対応させる
+          （塗りの大小＝避難先、白抜き＝避難先ではない地点、極小の点＝設備）。
+          以前は▲■✚を併記していたが地図側は全て丸で描いており、実物と食い違っていた。 */}
       <span className="lg-row">
-        <span className="sw area" style={{ background: AREA_COLOR }} aria-hidden="true" />▲{' '}
+        <span className="sw area" style={{ background: AREA_COLOR }} aria-hidden="true" />
         {STRINGS.map.legendEvacArea}
       </span>
       <span className="lg-row">
-        <span className="sw center" style={{ background: CENTER_COLOR }} aria-hidden="true" />■{' '}
+        <span className="sw center" style={{ background: CENTER_COLOR }} aria-hidden="true" />
         {STRINGS.map.legendEvacCenter}
       </span>
       <span className="lg-row">
-        <span className="sw hospital" style={{ background: HOSPITAL_COLOR }} aria-hidden="true" />✚{' '}
+        <span className="sw hospital" style={{ borderColor: HOSPITAL_COLOR }} aria-hidden="true" />
         {STRINGS.map.legendHospital}
       </span>
       <span className="lg-row">
@@ -1215,7 +1222,21 @@ function MapLegend({
         {STRINGS.map.legendHydrant}
       </span>
       <span className="lg-row">
-        <span className="sw you" aria-hidden="true" />
+        <span className="sw you" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            width="8"
+            height="8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 10.5 12 3l9 7.5" />
+            <path d="M5.5 9.5V20h13V9.5" />
+          </svg>
+        </span>
         {STRINGS.map.legendYou}
       </span>
       {/* ハザードのランク／深さ凡例 */}
@@ -1241,7 +1262,6 @@ function MapLegend({
           ))}
         </span>
       )}
-      <span className="lg-full">{STRINGS.map.legendHydrantScope}</span>
       <span className="lg-full">{STRINGS.map.legendNoData}</span>
     </div>
   )

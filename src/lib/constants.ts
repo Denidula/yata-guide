@@ -287,8 +287,8 @@ export const STRINGS = {
     legendEvacArea: '避難場所（災害時に逃げる先）',
     legendEvacCenter: '避難所（生活避難の先）',
     legendHospital: '災害拠点病院・連携病院（重症者の受け入れ先）',
-    legendHydrant: '消火栓（拡大すると表示）',
-    legendHydrantScope: '消火栓はわが家の周辺およそ2km四方のみ表示しています。',
+    // 消火栓は表示条件（拡大時・自宅周辺のみ）を凡例ラベル自体に畳み込み、注記の行を減らしている
+    legendHydrant: '消火栓（拡大時・わが家の周辺2km四方のみ）',
     // 地図の拡大表示（小さい端末でスクロールせずに地図を見るためのモード）
     expandBtn: '地図を拡大表示',
     collapseBtn: '拡大表示を終了',
