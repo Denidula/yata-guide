@@ -99,6 +99,37 @@ function drawLabel(
   ctx.fillText(text, x + w / 2, top + h / 2 + 0.5 * s)
 }
 
+/**
+ * わが家マーカーの中の家アイコン。
+ * 地図タブのマーカー（MapView.tsx の HOME_PIN_HTML）と同じ線画を、
+ * viewBox 0 0 24 24 のパスをそのままCanvasの座標へ写して描く。
+ * 図案がズレると「地図の自宅」と「計画カードの自宅」が別物に見えるため合わせている。
+ */
+function drawHouseGlyph(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+  const k = size / 24 // 24x24のviewBoxからの倍率
+  const px = (x: number) => cx + (x - 12) * k
+  const py = (y: number) => cy + (y - 12) * k
+  ctx.save()
+  ctx.strokeStyle = HOME_RING
+  ctx.lineWidth = 2.4 * k
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  // 屋根：M3 10.5 L12 3 L21 10.5
+  ctx.beginPath()
+  ctx.moveTo(px(3), py(10.5))
+  ctx.lineTo(px(12), py(3))
+  ctx.lineTo(px(21), py(10.5))
+  ctx.stroke()
+  // 壁：M5.5 9.5 V20 H18.5 V9.5
+  ctx.beginPath()
+  ctx.moveTo(px(5.5), py(9.5))
+  ctx.lineTo(px(5.5), py(20))
+  ctx.lineTo(px(18.5), py(20))
+  ctx.lineTo(px(18.5), py(9.5))
+  ctx.stroke()
+  ctx.restore()
+}
+
 function drawMarkers(
   ctx: CanvasRenderingContext2D,
   home: { x: number; y: number },
@@ -114,14 +145,15 @@ function drawMarkers(
   ctx.strokeStyle = '#fff'
   ctx.stroke()
 
-  // わが家＝白抜き＋青リング（地図タブ・凡例と同じ扱い）
+  // わが家＝白抜き＋青リング＋家アイコン（地図タブ・凡例と同じ見た目に揃える）
   ctx.beginPath()
-  ctx.arc(home.x, home.y, 11 * s, 0, Math.PI * 2)
+  ctx.arc(home.x, home.y, 12 * s, 0, Math.PI * 2)
   ctx.fillStyle = '#fff'
   ctx.fill()
   ctx.lineWidth = 4 * s
   ctx.strokeStyle = HOME_RING
   ctx.stroke()
+  drawHouseGlyph(ctx, home.x, home.y, 13 * s)
 
   // 避難場所は上・わが家は下に固定して置く。2点が近いとき（ズーム上限に当たった場合）でも
   // ラベル同士が必ず離れるため、衝突判定を書かずに読める配置になる。
