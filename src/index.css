@@ -2112,12 +2112,6 @@ body {
   line-height: 1.6;
   color: var(--ink);
 }
-.yk-bubble .yk-name {
-  display: block;
-  font-size: 11px;
-  color: var(--brand-ink);
-  margin-bottom: 2px;
-}
 /* 吹き出しのしっぽ（やっくん側=右下向き） */
 .yk-bubble::after {
   content: '';

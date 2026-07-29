@@ -73,7 +73,8 @@ export function Yakkun() {
       <div className="yakkun-wrap" ref={wrapRef}>
         {open && (
           <div className="yk-bubble" role="status">
-            <b className="yk-name">{STRINGS.yakkun.name}</b>
+            {/* 名前の見出しは出さない。吹き出しの主役は説明文で、
+                誰が喋っているかは隣のマスコット自身が示している。 */}
             {STRINGS.yakkun.byView[effectiveView]}
           </div>
         )}
