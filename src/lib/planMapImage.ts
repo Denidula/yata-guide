@@ -170,15 +170,7 @@ function drawAttribution(ctx: CanvasRenderingContext2D, s: number) {
   ctx.fillText(text, ctx.canvas.width - 5 * s, y + h / 2)
 }
 
-/**
- * 自宅と避難場所が収まる地図をPNGのdata URLで返す。
- * 失敗（WebGL不可・canvas書き出し不可等）は null を返し、呼び出し側は何も出さない。
- */
-export async function renderPlanMapImage(home: Pt, dest: Pt): Promise<string | null> {
-  const k = keyOf(home, dest)
-  const hit = cache.get(k)
-  if (hit) return hit
-
+async function attempt(home: Pt, dest: Pt): Promise<string | null> {
   let container: HTMLDivElement | null = null
   let map: maplibregl.Map | null = null
   try {
@@ -240,9 +232,7 @@ export async function renderPlanMapImage(home: Pt, dest: Pt): Promise<string | n
 
     // 淡色地図の線画なのでJPEGでも破綻せず、PNGの1/5〜1/10に収まる。
     // 生成物は端末内に留まり通信しないが、軽い方がメモリと描画に効く。
-    const url = out.toDataURL('image/jpeg', 0.85)
-    cache.set(k, url)
-    return url
+    return out.toDataURL('image/jpeg', 0.85)
   } catch (e) {
     console.debug('[ヤタガラス] plan map image failed:', e)
     return null
@@ -250,4 +240,26 @@ export async function renderPlanMapImage(home: Pt, dest: Pt): Promise<string | n
     map?.remove()
     container?.remove()
   }
+}
+
+/**
+ * 自宅と避難場所が収まる地図をJPEGのdata URLで返す。
+ * 失敗（WebGL不可・canvas書き出し不可等）は null を返し、呼び出し側は何も出さない。
+ *
+ * 1度だけ作り直す：WebGLコンテキストの確保は端末の状況次第で瞬間的に失敗しうる
+ * （本番デプロイ直後に一度、後から再現しない失敗を実際に観測した）。
+ * 失敗したままだと災害時にこの画像が出ないので、安い保険をかけておく。
+ */
+export async function renderPlanMapImage(home: Pt, dest: Pt): Promise<string | null> {
+  const k = keyOf(home, dest)
+  const hit = cache.get(k)
+  if (hit) return hit
+
+  let url = await attempt(home, dest)
+  if (!url) {
+    await new Promise((r) => window.setTimeout(r, 400))
+    url = await attempt(home, dest)
+  }
+  if (url) cache.set(k, url)
+  return url
 }
