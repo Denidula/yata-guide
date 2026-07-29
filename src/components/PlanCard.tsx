@@ -292,14 +292,17 @@ export function PlanCard({
                     target="_blank"
                     rel="noreferrer"
                   >
-                    <Icon name="pin-map" size={15} />
                     {STRINGS.plan.routeBtn}
                   </a>
-                  <div className="note-inline gray es-route-note">{STRINGS.plan.routeNote}</div>
+                  <div className="note-inline gray" style={{ marginTop: 10 }}>
+                    <Icon name="info" size={15} />
+                    <span>{STRINGS.plan.routeNote}</span>
+                  </div>
                 </>
               ) : (
-                <div className="note-inline gray es-route-note">
-                  {STRINGS.plan.routeOfflineNote}
+                <div className="note-inline gray" style={{ marginTop: 10 }}>
+                  <Icon name="info" size={15} />
+                  <span>{STRINGS.plan.routeOfflineNote}</span>
                 </div>
               )}
             </>
