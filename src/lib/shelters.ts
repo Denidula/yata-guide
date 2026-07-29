@@ -520,3 +520,22 @@ export async function findNearestHospitals(
 ): Promise<HospitalWithDistance[]> {
   return orderHospitals(origin, await loadHospitals(), n)
 }
+
+/**
+ * 外部の地図アプリで「現在地 → 避難場所」の徒歩ルートを開くURLを組む。
+ *
+ * 出発地（origin）は意図的に渡さない。省略すると地図アプリ側が自分の許可を取って
+ * 現在地を使うため、本アプリが自宅やGPSの座標を外部へ送らずに済む。
+ * URLに載るのは行き先＝東京都のオープンデータで公表されている公共施設の座標のみ。
+ *
+ * Google MapsのユニバーサルURLを使う。アプリが入っていれば各OSのアプリが開き、
+ * 無ければブラウザ版が開くため、iOS/Android/PCを1本で賄える。
+ */
+export function walkingRouteUrl(dest: { lng: number; lat: number }): string {
+  const q = new URLSearchParams({
+    api: '1',
+    destination: `${dest.lat},${dest.lng}`, // Google Mapsは lat,lng の順
+    travelmode: 'walking',
+  })
+  return `https://www.google.com/maps/dir/?${q.toString()}`
+}

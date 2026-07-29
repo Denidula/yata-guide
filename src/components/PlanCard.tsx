@@ -5,6 +5,7 @@ import { STRINGS } from '../lib/constants'
 import { buildPlan, type EvacuationPlan } from '../lib/plan'
 import {
   activeBarrierFree,
+  walkingRouteUrl,
   type FukushiWithDistance,
   type HospitalWithDistance,
 } from '../lib/shelters'
@@ -158,6 +159,21 @@ export function PlanCard({
   const [plan, setPlan] = useState<EvacuationPlan | null>(null)
   const [failed, setFailed] = useState(false)
 
+  // ルート確認は外部の地図アプリ＋通信が前提なので、オフライン時は導線を出さず理由を示す。
+  // navigator.onLine は「繋がっている保証」ではないが、機内モードの検出には十分。
+  const [online, setOnline] = useState(() =>
+    typeof navigator === 'undefined' ? true : navigator.onLine,
+  )
+  useEffect(() => {
+    const sync = () => setOnline(navigator.onLine)
+    window.addEventListener('online', sync)
+    window.addEventListener('offline', sync)
+    return () => {
+      window.removeEventListener('online', sync)
+      window.removeEventListener('offline', sync)
+    }
+  }, [])
+
   useEffect(() => {
     let alive = true
     setPlan(null)
@@ -266,6 +282,26 @@ export function PlanCard({
               <div className="es-dist area">
                 {STRINGS.map.distFmt(plan.area.distanceM, plan.area.walkMin)}
               </div>
+              {/* 「まず逃げる」先だけルート確認を出す。平時に一度歩いてみるための導線で、
+                  災害時の手段ではない（通信と外部アプリが必要）。生活避難・福祉避難所には付けない。 */}
+              {online ? (
+                <>
+                  <a
+                    className="es-route"
+                    href={walkingRouteUrl(plan.area)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Icon name="pin-map" size={15} />
+                    {STRINGS.plan.routeBtn}
+                  </a>
+                  <div className="note-inline gray es-route-note">{STRINGS.plan.routeNote}</div>
+                </>
+              ) : (
+                <div className="note-inline gray es-route-note">
+                  {STRINGS.plan.routeOfflineNote}
+                </div>
+              )}
             </>
           ) : (
             <div className="es-none">{STRINGS.plan.evacNone}</div>

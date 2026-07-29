@@ -7,6 +7,7 @@ import {
   nearestOne,
   orderHospitals,
   walkMinutes,
+  walkingRouteUrl,
   type Facility,
   type HospitalFacility,
 } from './shelters'
@@ -154,5 +155,28 @@ describe('activeBarrierFree', () => {
       slope: null,
     }).map((d) => d.key)
     expect(labels).toEqual(['wheelchair_toilet', 'braille_block'])
+  })
+})
+
+describe('walkingRouteUrl', () => {
+  const dest = { lng: 139.7823, lat: 35.7412 }
+
+  it('目的地は lat,lng の順で載る（Google Mapsの仕様）', () => {
+    const u = new URL(walkingRouteUrl(dest))
+    expect(u.searchParams.get('destination')).toBe('35.7412,139.7823')
+  })
+
+  it('徒歩モードを指定する', () => {
+    const u = new URL(walkingRouteUrl(dest))
+    expect(u.searchParams.get('travelmode')).toBe('walking')
+  })
+
+  it('出発地は渡さない（自宅の座標を外部に出さないため）', () => {
+    const url = walkingRouteUrl(dest)
+    const u = new URL(url)
+    expect(u.searchParams.has('origin')).toBe(false)
+    // 目的地以外の座標がURLに混ざっていないことも確かめる
+    expect(url.match(/35\.\d+/g)).toEqual(['35.7412'])
+    expect(url.match(/139\.\d+/g)).toEqual(['139.7823'])
   })
 })
