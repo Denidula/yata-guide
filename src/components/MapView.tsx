@@ -295,6 +295,7 @@ function hydrantPopupHTML(
 export function MapView() {
   const coords = usePlanStore((s) => s.coords)
   const risk = usePlanStore((s) => s.risk)
+  const setView = usePlanStore((s) => s.setView)
 
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -1136,6 +1137,14 @@ export function MapView() {
           <Icon name="info" size={15} />
           <span>{STRINGS.map.walkNote}</span>
         </p>
+      </div>
+
+      {/* 次の一手。地図で避難先を見た人が計画づくりに進める導線がなく、
+          タブバーを自分で押すしかなかった（危険度カードには同じCTAがある）。 */}
+      <div className="next-cta">
+        <button className="btn big" onClick={() => setView('plan')}>
+          <Icon name="clipboard-plan" size={18} /> {STRINGS.card.ctaPlan}
+        </button>
       </div>
 
       {/* 出典表記 */}
