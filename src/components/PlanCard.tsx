@@ -9,6 +9,7 @@ import {
   type FukushiWithDistance,
   type HospitalWithDistance,
 } from '../lib/shelters'
+import { renderPlanMapImage } from '../lib/planMapImage'
 import { KIT_SOURCE, type KitItem } from '../data/emergency_kit'
 import { useOfflinePackStore } from '../store/useOfflinePackStore'
 import type { FamilyProfile } from '../store/useProfileStore'
@@ -174,6 +175,34 @@ export function PlanCard({
     }
   }, [])
 
+  // 「まず逃げる」先の位置を示す静止画。通信が切れた状態で開いたとき、
+  // 文字だけでは避難先がどっちなのか分からないため、端末内で描いて添える。
+  // 生成に1秒弱かかるので、待っている間も同じ高さの枠を出しておく。
+  // 後から画像が差し込まれて本文が下へ飛ぶのを防ぐ（スクロール中に押し下げられると誤タップになる）。
+  const [mapImg, setMapImg] = useState<string | null>(null)
+  const [mapImgPending, setMapImgPending] = useState(false)
+  const area = plan?.area
+  useEffect(() => {
+    if (!area) {
+      setMapImg(null)
+      setMapImgPending(false)
+      return
+    }
+    let alive = true
+    setMapImg(null)
+    setMapImgPending(true)
+    renderPlanMapImage({ lng: origin.lng, lat: origin.lat }, { lng: area.lng, lat: area.lat }).then(
+      (url) => {
+        if (!alive) return
+        setMapImg(url)
+        setMapImgPending(false)
+      },
+    )
+    return () => {
+      alive = false
+    }
+  }, [area, origin.lng, origin.lat])
+
   useEffect(() => {
     let alive = true
     setPlan(null)
@@ -282,6 +311,19 @@ export function PlanCard({
               <div className="es-dist area">
                 {STRINGS.map.distFmt(plan.area.distanceM, plan.area.walkMin)}
               </div>
+              {/* 位置関係の静止画。生成待ちでも同じ4:3の枠を出して高さを固定する
+                  （画像だけ差し替わるので本文が飛ばない）。描けなかったときは丸ごと出さない。 */}
+              {(mapImg || mapImgPending) && (
+                <figure className="es-map">
+                  {mapImg ? (
+                    <img src={mapImg} alt={STRINGS.plan.mapImgAlt(plan.area.name)} />
+                  ) : (
+                    <div className="es-map-wait" role="status">
+                      {STRINGS.plan.mapImgLoading}
+                    </div>
+                  )}
+                </figure>
+              )}
               {/* 「まず逃げる」先だけルート確認を出す。平時に一度歩いてみるための導線で、
                   災害時の手段ではない（通信と外部アプリが必要）。生活避難・福祉避難所には付けない。 */}
               {online ? (
