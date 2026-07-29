@@ -1030,8 +1030,11 @@ body {
 /* 地図の拡大表示（タブ＋地図＋凡例をまとめて全画面へ）。
    iOS SafariはFullscreen APIが動画以外で使えないため、固定配置で実現する。
    地図のリサイズはMapView側のResizeObserverが拾うので、ここではレイアウトだけ扱う。 */
+/* 通常時はただの縦積みの箱（中身は全て全幅ブロックなので見た目は包む前と変わらない）。
+   display:contents にすると箱を持たず、避難先リストから地図へスクロールする処理で
+   位置を測れなくなるため、実体のあるブロックにしている。 */
 .map-stage {
-  display: contents; /* 通常時は存在しないかのように振る舞い、既存の縦積みを崩さない */
+  display: block;
 }
 .map-stage.is-expanded {
   display: flex;

@@ -321,6 +321,7 @@ export function MapView() {
   const [expanded, setExpanded] = useState(false)
   const [legendOpen, setLegendOpen] = useState(false)
   const expandBtnRef = useRef<HTMLButtonElement>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
   const skipFirstFocus = useRef(true)
 
   // 拡大表示中の付帯処理。地図のリサイズ自体は既存のResizeObserverが拾うので不要。
@@ -972,6 +973,21 @@ export function MapView() {
     if (!map) return
     map.flyTo({ center: [f.lng, f.lat], zoom: PIN_ZOOM, duration: 800 })
     openFacilityPopup(f, [f.lng, f.lat])
+    // 地図はリストより上にあるため、そのままでは「地図は動いたが画面外」になる。
+    // 拡大表示中は地図が画面全体なのでスクロール不要。
+    // ヘッダーはstickyなので、その実測高さぶん手前で止めて潜り込みを防ぐ
+    //（appbarの高さは端末幅で変わる＝実測する。固定値だとSEで見出しが隠れる）。
+    if (!expanded) {
+      const stage = stageRef.current
+      if (stage) {
+        const header = document.querySelector('.appbar')?.getBoundingClientRect().height ?? 0
+        const top = stage.getBoundingClientRect().top + window.scrollY - header
+        const reduce =
+          typeof matchMedia !== 'undefined' &&
+          matchMedia('(prefers-reduced-motion: reduce)').matches
+        window.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'auto' : 'smooth' })
+      }
+    }
   }
 
   /** 現在地（わが家）に地図を戻すFAB。 */
@@ -991,6 +1007,7 @@ export function MapView() {
       {/* 災害種別タブ＋地図＋凡例をひとまとめにして、拡大時はこの塊ごと全画面化する。
           住所コンテキストは含めない（拡大時はわが家マーカーが位置を示すため、その分を地図に充てる）。 */}
       <div
+        ref={stageRef}
         className={expanded ? 'map-stage is-expanded' : 'map-stage'}
         {...(expanded
           ? { role: 'dialog' as const, 'aria-modal': true, 'aria-label': '地図（拡大表示）' }
@@ -1048,12 +1065,14 @@ export function MapView() {
         )}
       </div>
 
-      {/* 凡例。通常は常設、拡大時のみ折りたたみ（凡例は実測178px＝地図の半分を占めるため）。 */}
+      {/* 凡例は常に折りたたみ式で、既定は閉じる。
+          ピンの描き分け（塗りの大小／白抜き／極小の点）で地図単体でも読めるようになったため、
+          常時150px前後を占有させるより、必要な人だけ開く形にしている。 */}
       <MapLegend
         hazard={hazard}
         label={activeHaz.label}
-        collapsible={expanded}
-        open={!expanded || legendOpen}
+        collapsible
+        open={legendOpen}
         onToggle={() => setLegendOpen((v) => !v)}
       />
       </div>
