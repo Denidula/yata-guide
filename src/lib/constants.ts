@@ -159,6 +159,7 @@ export const STRINGS = {
     name: 'わが家の避難計画',
     tagline: '2秒で。／ 東京都版（デモ）',
     logo: '防',
+    scrollTop: 'ページの先頭に戻る',
   },
 
   home: {

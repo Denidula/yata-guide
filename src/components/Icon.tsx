@@ -26,6 +26,7 @@ import airplaneMode from '../assets/icons/airplane-mode.svg?raw'
 import clipboardPlan from '../assets/icons/clipboard-plan.svg?raw'
 import expand from '../assets/icons/expand.svg?raw'
 import collapse from '../assets/icons/collapse.svg?raw'
+import chevronUp from '../assets/icons/chevron-up.svg?raw'
 
 export type IconName =
   | 'home'
@@ -42,6 +43,7 @@ export type IconName =
   | 'offline'
   | 'info'
   | 'chevron-right'
+  | 'chevron-up'
   | 'airplane-mode'
   | 'clipboard-plan'
   | 'expand'
@@ -65,6 +67,7 @@ const RAW: Record<IconName, string> = {
   'airplane-mode': airplaneMode,
   expand,
   collapse,
+  'chevron-up': chevronUp,
   'clipboard-plan': clipboardPlan,
 }
 

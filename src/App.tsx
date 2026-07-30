@@ -5,6 +5,7 @@ import { STRINGS } from './lib/constants'
 import { clearSharedHash, decodeSharedPlanFromHash, type SharedPlanPayload } from './lib/share'
 import { Header } from './components/Header'
 import { SharedPlanView } from './components/SharedPlanView'
+import { ScrollTopButton } from './components/ScrollTopButton'
 import { Yakkun } from './components/Yakkun'
 import { Home } from './components/Home'
 import { RiskCard } from './components/RiskCard'
@@ -65,6 +66,7 @@ function App() {
       <div className="stage">
         <Header />
         <SharedPlanView payload={shared} onClose={closeShared} />
+        <ScrollTopButton />
       </div>
     )
   }
@@ -95,6 +97,9 @@ function App() {
 
       {/* マスコット（判定中・エラー中は出さない。共有閲覧モードはこの分岐に来ない） */}
       {!isLocating && !isError && <Yakkun />}
+
+      {/* 先頭に戻るボタン（左下）。スクロールして初めて出るので、常設でも邪魔にならない。 */}
+      <ScrollTopButton />
 
       {showTabBar && <TabBar />}
     </div>
