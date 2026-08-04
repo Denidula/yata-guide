@@ -50,7 +50,6 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
   const restored = usePlanStore((s) => s.restoredFromStorage)
 
   const overall = risk.total.rank
-  const showCoarseNote = coords != null && !coords.precise
 
   // 避難先サマリー：地震のとき近い避難場所1件＋最寄りの避難所1件。
   const [nearArea, setNearArea] = useState<FacilityWithDistance | null>(null)
@@ -135,13 +134,8 @@ export function RiskCard({ risk }: { risk: RiskInfo }) {
         </button>
       </div>
 
-      {/* 代表点精度の注記（point.level<8 のとき） */}
-      {showCoarseNote && (
-        <div className="note-inline gray" style={{ margin: '12px 20px 0' }}>
-          <Icon name="info" size={15} />
-          <span>{STRINGS.card.coarsePrecisionNote}</span>
-        </div>
-      )}
+      {/* 代表点精度の注記は廃止。住所ヘッダーの「／ 町丁目単位で判定」が同じことを
+          言っており、丁目代表点で判定＝番地は見ていない、という情報が二重になっていた。 */}
 
       {/* 近傍スナップの注記（町丁目ポリゴン外→最寄り町丁目に割当のとき。レビューM-5） */}
       {!pipExact && (

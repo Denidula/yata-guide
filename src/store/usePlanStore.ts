@@ -191,7 +191,7 @@ async function resolveFromCoords(
  */
 export const usePlanStore = create<PlanState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
 
       setAddressInput: (value) => set({ addressInput: value }),
@@ -254,16 +254,20 @@ export const usePlanStore = create<PlanState>()(
       backToHome: () => {
         // 進行中の判定があれば無効化（キャンセル・M-4/M-9。遅延結果の上書きを防ぐ）
         searchGeneration++
+        // 判定結果（risk/coords/address/chomokuId）は消さない。
+        // 以前はここで全部捨てていたため、ホームタブを押すと hasResult が false になり
+        // タブバーごと消え、計画を見直すには住所の再入力が必要だった。
+        // 別の住所を調べたいときは入力すれば上書きされるので、破棄する必要がない。
+        // （リロードでは persist で結果が復元されるのに、ホームタブでは消えるという
+        //   食い違いもこれで解消する）
+        //
+        // uiStatus は結果の有無で決める。この関数は「判定中のキャンセル」と
+        // 「エラー画面から戻る」にも使われているので、locating/error を残すと
+        // ホームへ来たのに読み込み画面のままになる。結果があるなら ready にして
+        // タブバーと各タブを有効に保ち、無ければ idle（住所未入力の初期状態）に戻す。
         set({
           view: 'home',
-          address: null,
-          coords: null,
-          chomokuId: null,
-          risk: null,
-          pipExact: true,
-          source: null,
-          uiStatus: { kind: 'idle' },
-          restoredFromStorage: false,
+          uiStatus: get().risk != null ? { kind: 'ready' } : { kind: 'idle' },
         })
       },
 
