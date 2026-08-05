@@ -36,9 +36,45 @@ npm run preview
 
 背景地図タイルは国土地理院淡色地図タイル（`https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png`）を使用しています。
 
-## データ出典について
+## データ出典・ライセンス
 
-危険度データ等の出典・ライセンス表記は、実装時にアプリ内（カード表示・フッター等）の表記に従います。本READMEでは個別データセットの出典は記載しません。
+`public/data/` 配下のGeoJSON・JSONは、東京都および国の機関が公開するオープンデータを**加工した派生物**です。このリポジトリはそれらを同梱して配布しているため、アプリ画面上の表記とは別に、ここにも出典を記載します。
+
+### 加工内容の開示
+
+以下の加工を行っています。**東京都または都内区市町村が作成した情報ではありません。**
+
+- 座標系変換（平面直角座標系 → WGS84）
+- GeoJSON／PMTiles／グリッド分割JSONへの形式変換
+- 危険度スコアのランク別色分け、地図タイル化のための座標間引き・簡略化
+- 住所からのジオコーディングによる座標の独自付与（緯度経度を持たない元データ）
+- 地盤分類データを用いた液状化しやすさの簡易区分（独自の加工。東京都公式の「液状化予測図」ではありません）
+
+### 出典一覧
+
+| データ | 提供者 | ライセンス | 本リポジトリでの所在 |
+|---|---|---|---|
+| 地震に関する地域危険度測定調査 地域危険度一覧（第9回・令和4年9月公表） | 東京都都市整備局 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) | `public/data/chomoku_lookup.json`, `chomoku_pip.geojson` ／ PMTilesは別途R2配信 |
+| 東京都防災マップ 避難所・避難場所一覧データ | 東京都総務局 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) | `public/data/evacuation_centers.geojson`, `evacuation_areas.geojson` |
+| 東京消防庁 消火栓及び防火水槽等（公設消火栓情報） | 東京消防庁 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) | `public/data/hydrants/*.json`（0.01°グリッド分割。公設上水道消火栓のみ収録、防火水槽は含まれません） |
+| 東京都の災害拠点病院等（拠点病院・連携病院リスト） | 東京都保健医療局 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) | `public/data/hospitals.geojson`（元データに緯度経度が無いため国土地理院APIでジオコーディング） |
+| 浸水予想区域図（洪水・内水） | 東京都建設局 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) | PMTilesとしてR2配信（本リポジトリには含まれません） |
+| 津波浸水分布（令和4年度首都直下地震等による東京の被害想定結果） | 東京都総務局 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) | 同上 |
+| 高潮浸水想定区域図 | 東京都港湾局 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) | 同上 |
+| 福祉避難所（24自治体の統合・938施設） | 世田谷区・港区・品川区・清瀬市・足立区ほか各区市 | 各自治体のオープンデータ利用条件（CC BY系。**一部の自治体について個別条件の確認が未完了**） | `public/data/fukushi_hinanjo.geojson` |
+| 背景地図タイル（淡色地図） | 国土地理院 | [国土地理院コンテンツ利用規約](https://maps.gsi.go.jp/development/ichiran.html) | 同梱せず実行時に取得 |
+
+> **福祉避難所データについて**：市区町村ごとに個別公開されているデータを統合したもので、一部自治体の再配布条件の確認が完了していません。権利者からの申し出があれば速やかに対応します。ご指摘は Issue でお知らせください。
+
+アプリ画面に表示している出典・免責の文面は `src/lib/constants.ts` の `STRINGS.map.attribution` および `STRINGS.disclaimer` にあります。
+
+## ライセンス
+
+**このリポジトリは閲覧目的で公開しています。** ソースコードの再利用・改変・再配布は許諾していません（著作権はすべて留保します）。
+
+同梱している `public/data/` 配下のデータは上表のとおり各提供元のライセンス（主に CC BY 4.0）に従うため、この制限の対象外です。それぞれのライセンス条件に従ってご利用ください。
+
+本アプリは行政公表データを加工した参考情報であり、災害に対する安全を保証するものではありません。避難行動の最終判断は、自治体・気象庁等の公式な指示を優先してください。
 
 ## Cloudflare Pages接続
 
