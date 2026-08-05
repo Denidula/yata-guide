@@ -34,8 +34,14 @@ const INITIAL_CENTER: [number, number] = [139.75, 35.69]
 const INITIAL_ZOOM = 11
 /** わが家判定済みで開いたときのflyTo先ズーム。 */
 const HOME_ZOOM = 13
-/** 避難先ピンをタップしたときのflyTo先ズーム。 */
+/** 避難先ピンをタップしたときのflyTo先ズーム（自宅座標が無い場合のフォールバック）。 */
 const PIN_ZOOM = 15
+/**
+ * 避難先リストをタップしたとき、わが家と避難先を一緒に収める際の寄りすぎ防止。
+ * z16は約1.9m/pxで幅390pxの画面に約760m入る。最寄りの避難所（100〜200m）でも
+ * 両方が収まりつつ、通りが読める程度の詳細が残る。
+ */
+const PAIR_MAX_ZOOM = 16
 
 /** 危険度ポリゴンの塗り透明度。 */
 const RISK_FILL_OPACITY = 0.55
@@ -968,11 +974,27 @@ export function MapView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coords, centers])
 
-  /** リスト項目タップ → flyTo＋ポップアップ。 */
+  /** リスト項目タップ → わが家と一緒に収まる範囲へ移動＋ポップアップ。 */
   function handleListItemClick(f: FacilityWithDistance) {
     const map = mapRef.current
     if (!map) return
-    map.flyTo({ center: [f.lng, f.lat], zoom: PIN_ZOOM, duration: 800 })
+    // 避難先だけに寄せると自宅が画面外に出て位置関係が分からない、という指摘への対応。
+    // 両方が収まる範囲へ動かすが、上限を設けないと近い避難所（148m等）で寄りすぎるため
+    // PAIR_MAX_ZOOM で頭打ちにする＝遠ければ引き、近ければ寄る。
+    // 上側の余白を厚くしているのは、ピンが上端に来たときポップアップが切れるのを防ぐため。
+    if (origin) {
+      const b = new maplibregl.LngLatBounds()
+      b.extend([origin.lng, origin.lat])
+      b.extend([f.lng, f.lat])
+      map.fitBounds(b, {
+        padding: { top: 96, bottom: 44, left: 44, right: 44 },
+        maxZoom: PAIR_MAX_ZOOM,
+        duration: 800,
+      })
+    } else {
+      // 自宅座標が無い場合（通常は地図タブに来られない）は従来どおり避難先へ寄せる
+      map.flyTo({ center: [f.lng, f.lat], zoom: PIN_ZOOM, duration: 800 })
+    }
     openFacilityPopup(f, [f.lng, f.lat])
     // 地図はリストより上にあるため、そのままでは「地図は動いたが画面外」になる。
     // 拡大表示中は地図が画面全体なのでスクロール不要。
