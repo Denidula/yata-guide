@@ -1773,9 +1773,6 @@ body {
 .es-dot.fukushi {
   background: var(--evac-fukushi);
 }
-.es-dist.fukushi {
-  color: var(--evac-fukushi-ink);
-}
 .es-dot.hospital {
   background: var(--evac-hospital);
 }

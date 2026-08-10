@@ -6,7 +6,6 @@ import { buildPlan, type EvacuationPlan } from '../lib/plan'
 import {
   activeBarrierFree,
   walkingRouteUrl,
-  type FukushiWithDistance,
   type HospitalWithDistance,
 } from '../lib/shelters'
 import { renderPlanMapImage } from '../lib/planMapImage'
@@ -101,20 +100,7 @@ function KitRow({
   )
 }
 
-/** 福祉避難所の1行。 */
-function FukushiRow({ f }: { f: FukushiWithDistance }) {
-  return (
-    <div className="fk-item">
-      <div className="fk-name">{f.name}</div>
-      <div className="fk-meta">
-        <span className="fk-cat">{f.category}</span>
-        <span className="es-dist fukushi">{STRINGS.map.distFmt(f.distanceM, f.walkMin)}</span>
-      </div>
-    </div>
-  )
-}
-
-/** 病院1件（けが・急病セクション）。福祉避難所の行と同じ構成に揃える。 */
+/** 病院1件（けが・急病セクション）。 */
 function HospitalRow({ h }: { h: HospitalWithDistance }) {
   return (
     <div className="fk-item">
@@ -406,24 +392,46 @@ export function PlanCard({
                 <span className="es-sublabel">{STRINGS.plan.stepFukushiSub}</span>
               </span>
             </div>
-            {plan.fukushi.status === 'covered' ? (
+            {plan.fukushi.status === 'linked' ? (
               <>
-                {plan.fukushi.nearest.length === 0 && (
-                  <div className="es-none">{STRINGS.plan.evacNone}</div>
+                <div className="es-note">{STRINGS.fukushi.linkLead(plan.fukushi.muni)}</div>
+                {online ? (
+                  <>
+                    <a
+                      className="es-route"
+                      href={plan.fukushi.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {STRINGS.fukushi.linkBtn(plan.fukushi.muni)}
+                    </a>
+                    <div className="note-inline gray" style={{ marginTop: 6 }}>
+                      <Icon name="info" size={15} />
+                      <span>{STRINGS.fukushi.linkNote}</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="note-inline gray" style={{ marginTop: 10 }}>
+                    <Icon name="info" size={15} />
+                    <span>{STRINGS.fukushi.linkOfflineNote}</span>
+                  </div>
                 )}
-                {plan.fukushi.nearest.map((f) => (
-                  <FukushiRow key={`${f.name}-${f.address}`} f={f} />
-                ))}
                 <div className="note-inline blue" style={{ marginTop: 10 }}>
                   <Icon name="info" size={15} />
                   <span>{STRINGS.fukushi.roleNote}</span>
                 </div>
               </>
             ) : (
-              <div className="note-inline gray" style={{ marginTop: 8 }}>
-                <Icon name="info" size={15} />
-                <span>{STRINGS.fukushi.notCovered(plan.fukushi.muni)}</span>
-              </div>
+              <>
+                <div className="note-inline gray" style={{ marginTop: 8 }}>
+                  <Icon name="info" size={15} />
+                  <span>{STRINGS.fukushi.notCovered(plan.fukushi.muni)}</span>
+                </div>
+                <div className="note-inline blue" style={{ marginTop: 10 }}>
+                  <Icon name="info" size={15} />
+                  <span>{STRINGS.fukushi.roleNote}</span>
+                </div>
+              </>
             )}
           </div>
         )}

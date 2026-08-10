@@ -61,10 +61,9 @@ npm run preview
 | 浸水予想区域図（洪水・内水） | 東京都建設局 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) | PMTilesとしてR2配信（本リポジトリには含まれません） |
 | 津波浸水分布（令和4年度首都直下地震等による東京の被害想定結果） | 東京都総務局 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) | 同上 |
 | 高潮浸水想定区域図 | 東京都港湾局 | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja) | 同上 |
-| 福祉避難所（24自治体の統合・938施設） | 世田谷区・港区・品川区・清瀬市・足立区ほか各区市 | 各自治体のオープンデータ利用条件（CC BY系。**一部の自治体について個別条件の確認が未完了**） | `public/data/fukushi_hinanjo.geojson` |
 | 背景地図タイル（淡色地図） | 国土地理院 | [国土地理院コンテンツ利用規約](https://maps.gsi.go.jp/development/ichiran.html) | 同梱せず実行時に取得 |
 
-> **福祉避難所データについて**：市区町村ごとに個別公開されているデータを統合したもので、一部自治体の再配布条件の確認が完了していません。権利者からの申し出があれば速やかに対応します。ご指摘は Issue でお知らせください。
+> **福祉避難所について**：福祉避難所は区市町村がそれぞれ指定・公表しており、一覧の再利用条件も区市ごとに異なります。本アプリは施設一覧を収録・再配布せず、判定した区市の公表ページへのリンクだけを持ちます（`public/data/fukushi_links.json`＝区市名とURLの対応表）。リンク先ページの内容は各区市に帰属します。
 
 アプリ画面に表示している出典・免責の文面は `src/lib/constants.ts` の `STRINGS.map.attribution` および `STRINGS.disclaimer` にあります。
 

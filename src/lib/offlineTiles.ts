@@ -433,8 +433,7 @@ const APP_DATA_URLS = [
   '/data/chomoku_lookup.json',
   '/data/evacuation_areas.geojson',
   '/data/evacuation_centers.geojson',
-  '/data/fukushi_hinanjo.geojson',
-  '/data/fukushi_hinanjo_coverage.json',
+  '/data/fukushi_links.json',
   '/data/hospitals.geojson',
 ]
 

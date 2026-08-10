@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   activeBarrierFree,
   filterAreasByHazard,
+  findFukushiLink,
   haversineM,
   nearest,
   nearestOne,
@@ -178,5 +179,26 @@ describe('walkingRouteUrl', () => {
     // 目的地以外の座標がURLに混ざっていないことも確かめる
     expect(url.match(/35\.\d+/g)).toEqual(['35.7412'])
     expect(url.match(/139\.\d+/g)).toEqual(['139.7823'])
+  })
+})
+
+describe('findFukushiLink', () => {
+  // リンク集はモジュール内でキャッシュされるため、1回だけfetchをスタブして両ケースを見る。
+  it('リンク集にある区市はURLを返し、無い区市は no_link を返す', async () => {
+    const links = { 世田谷区: 'https://example.lg.jp/setagaya/fukushi.html' }
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => links }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    expect(await findFukushiLink('世田谷区')).toEqual({
+      status: 'linked',
+      muni: '世田谷区',
+      url: 'https://example.lg.jp/setagaya/fukushi.html',
+    })
+    // 案内先を用意できていない区市は、施設を出さず正直に no_link
+    expect(await findFukushiLink('あきる野市')).toEqual({ status: 'no_link', muni: 'あきる野市' })
+    // 2回目はキャッシュから返す（区市を変えるたびに取りに行かない）
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    vi.unstubAllGlobals()
   })
 })

@@ -9,7 +9,8 @@
  *  - 車椅子・要介護がいる世帯 → バリアフリー設備フラグが立っている避難所を優先。
  *    BFフラグは true|null（null=情報なし）のため「求める設備のうち1つ以上 true」を適合とし、
  *    適合施設を距離順で先頭に置く。比較用に無条件の最寄りも併記する。
- *  - 要配慮属性がある世帯には福祉避難所（二次避難所）の最寄り候補を添える。
+ *  - 要配慮属性がある世帯には福祉避難所（二次避難所）の案内を添える。施設一覧は各区市が公表しており
+ *    本アプリは再配布しないため、判定地点の区市の公表ページへのリンクを出す。
  *    「直接向かう場所ではなく開設後に案内される二次避難先」の注記（STRINGS.fukushi.roleNote）が必須。
  *  - けが・急病の搬送先（災害拠点病院）は世帯構成によらず全世帯に出す。
  *    軽症で自己判断して向かう場所ではない旨の注記（STRINGS.hospital.roleNote）が必須。
@@ -24,14 +25,14 @@ import {
 } from '../data/emergency_kit'
 import {
   filterAreasByHazard,
-  findNearestFukushi,
+  findFukushiLink,
   findNearestHospitals,
   loadAreas,
   loadCenters,
   nearest,
   type BarrierFree,
   type FacilityWithDistance,
-  type FukushiSearchResult,
+  type FukushiLinkResult,
   type HospitalWithDistance,
 } from './shelters'
 import type { FamilyProfile } from '../store/useProfileStore'
@@ -99,8 +100,8 @@ export interface EvacuationPlan {
   centers: CenterCandidate[]
   /** 求めたバリアフリー設備（空=BF要件なし。カードの説明表示用） */
   requiredBf: Array<keyof BarrierFree>
-  /** 福祉避難所（要配慮メンバーがいるときのみ検索。いなければ null） */
-  fukushi: FukushiSearchResult | null
+  /** 福祉避難所の案内先（要配慮メンバーがいるときのみ。いなければ／取得失敗時は null） */
+  fukushi: FukushiLinkResult | null
   /** けが・急病のときの搬送先候補（災害拠点病院を優先。取得失敗時は空配列） */
   hospitals: HospitalWithDistance[]
   /** 持ち出し品チェックリスト（基本＋属性別） */
@@ -147,8 +148,11 @@ export async function buildPlan(
     }
   }
 
-  // 3) 福祉避難所（二次避難所）: 要配慮メンバーがいる世帯のみ
-  const fukushi = hasVulnerableMember(profile) ? await findNearestFukushi(origin, ward, 2) : null
+  // 3) 福祉避難所（二次避難所）: 要配慮メンバーがいる世帯のみ。区市の公表ページへ案内する。
+  //    リンク集を取得できなくてもカード全体は出したいので null に倒す（セクションごと出さない）。
+  const fukushi = hasVulnerableMember(profile)
+    ? await findFukushiLink(ward).catch(() => null)
+    : null
 
   // 4) けが・急病のときの搬送先: 災害拠点病院は世帯構成によらず必要なので無条件。
   //    データ取得に失敗してもカード全体は出したいので空配列に倒す。
