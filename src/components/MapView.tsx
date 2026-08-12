@@ -188,6 +188,32 @@ function distanceLine(
   return STRINGS.map.distFmt(m, min)
 }
 
+/**
+ * ポップアップ共通の見出しブロック（種別バッジ＋施設名）。
+ * 閉じるボタンと重ならないよう、右側の余白はCSS（.ev-pop-head）で確保している。
+ */
+function popHead(kindWord: string, color: string, name?: string): string {
+  return (
+    `<div class="ev-pop-head">` +
+    `<span class="ev-pop-kind" style="color:${color}"><span class="dot" style="background:${color}"></span>${esc(kindWord)}</span>` +
+    (name ? `<div class="ev-pop-name">${esc(name)}</div>` : '') +
+    `</div>`
+  )
+}
+
+/**
+ * ラベルと値の一覧（dl）。ラベル列の幅を揃えて左端を通し、視線を1本に保つ。
+ * value は組み立て済みHTMLを受け取るので、呼び出し側でエスケープすること。
+ */
+function popFacts(rows: Array<[label: string, valueHTML: string]>): string {
+  if (rows.length === 0) return ''
+  return (
+    `<dl class="ev-pop-facts">` +
+    rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join('') +
+    `</dl>`
+  )
+}
+
 /** 施設ポップアップのHTMLを組み立てる（避難場所/避難所共通）。 */
 function facilityPopupHTML(
   f: Facility,
@@ -197,8 +223,9 @@ function facilityPopupHTML(
   const kindWord = isArea ? STRINGS.map.popKindArea : STRINGS.map.popKindCenter
   const kindColor = isArea ? AREA_COLOR : CENTER_COLOR
 
+  const rows: Array<[string, string]> = []
+
   // 対応災害（避難場所のみ）
-  let disasterRow = ''
   if (isArea && f.disasters) {
     const labels: string[] = []
     if (f.disasters.earthquake) labels.push('地震')
@@ -210,29 +237,30 @@ function facilityPopupHTML(
     if (f.disasters.fire) labels.push('大規模火事')
     if (f.disasters.volcano) labels.push('火山')
     if (labels.length > 0) {
-      disasterRow = `<div class="ev-pop-line"><span class="k">${STRINGS.map.popDisasterLabel}</span>${esc(labels.join('・'))}</div>`
+      rows.push([STRINGS.map.popDisasterLabel, esc(labels.join('・'))])
     }
   }
 
-  // バリアフリー
+  // バリアフリー。公表があるものだけチップにし、無い場合は「情報なし」を
+  // ただの文字で出す（チップにすると設備が有るように見えるため）。
   const bf = activeBarrierFree(f.bf)
-  const bfText =
+  rows.push([
+    STRINGS.map.popBfLabel,
     bf.length > 0
-      ? bf.map((b) => `<span class="ev-bf" title="${esc(b.label)}">${b.icon} ${esc(b.label)}</span>`).join('')
-      : `<span class="ev-bf none">${STRINGS.map.popBfNone}</span>`
-  const bfRow = `<div class="ev-pop-line bf"><span class="k">${STRINGS.map.popBfLabel}</span><span class="ev-bf-wrap">${bfText}</span></div>`
+      ? `<span class="ev-bf-wrap">${bf
+          .map((b) => `<span class="ev-bf">${esc(b.icon)} ${esc(b.label)}</span>`)
+          .join('')}</span>`
+      : `<span class="ev-none-text">${esc(STRINGS.map.popBfNone)}</span>`,
+  ])
 
   const dLine = distanceLine(origin, f.lng, f.lat)
-  const distRow = dLine ? `<div class="ev-pop-dist">${esc(dLine)}</div>` : ''
 
   return (
     `<div class="ev-pop">` +
-    `<div class="ev-pop-kind" style="color:${kindColor}"><span class="dot" style="background:${kindColor}"></span>${kindWord}</div>` +
-    `<div class="ev-pop-name">${esc(f.name)}</div>` +
+    popHead(kindWord, kindColor, f.name) +
     `<div class="ev-pop-addr">${esc(f.address)}</div>` +
-    distRow +
-    disasterRow +
-    bfRow +
+    (dLine ? `<div class="ev-pop-dist">${esc(dLine)}</div>` : '') +
+    popFacts(rows) +
     `</div>`
   )
 }
@@ -254,21 +282,18 @@ function hospitalPopupHTML(
   const kindWord =
     h.type === 'kyoten' ? STRINGS.map.popKindHospital : STRINGS.map.popKindHospitalRenkei
   const dLine = distanceLine(origin, h.lng, h.lat)
-  const rows = [
-    h.tertiaryEr
-      ? `<div class="ev-pop-line"><span class="k">${STRINGS.map.popTertiaryEr}</span></div>`
-      : '',
-    h.area ? `<div class="ev-pop-line"><span class="k">${STRINGS.map.popAreaLabel}</span>${esc(h.area)}</div>` : '',
-    h.tel ? `<div class="ev-pop-line"><span class="k">${STRINGS.map.popTelLabel}</span>${esc(h.tel)}</div>` : '',
-  ].join('')
+  const rows: Array<[string, string]> = []
+  if (h.area) rows.push([STRINGS.map.popAreaLabel, esc(h.area)])
+  if (h.tel) rows.push([STRINGS.map.popTelLabel, esc(h.tel)])
 
   return (
     `<div class="ev-pop">` +
-    `<div class="ev-pop-kind" style="color:${HOSPITAL_COLOR}"><span class="dot" style="background:${HOSPITAL_COLOR}"></span>${kindWord}</div>` +
-    `<div class="ev-pop-name">${esc(h.name)}</div>` +
+    popHead(kindWord, HOSPITAL_COLOR, h.name) +
+    // 三次救急は値のないラベルなので、dlの行ではなくバッジとして名前の下に出す
+    (h.tertiaryEr ? `<div class="ev-pop-tag">${esc(STRINGS.map.popTertiaryEr)}</div>` : '') +
     `<div class="ev-pop-addr">${esc(h.address)}</div>` +
     (dLine ? `<div class="ev-pop-dist">${esc(dLine)}</div>` : '') +
-    rows +
+    popFacts(rows) +
     `<div class="ev-pop-note">${esc(STRINGS.hospital.roleNote)}</div>` +
     `</div>`
   )
@@ -283,7 +308,8 @@ function hydrantPopupHTML(
   const dLine = distanceLine(origin, lng, lat)
   return (
     `<div class="ev-pop">` +
-    `<div class="ev-pop-kind" style="color:${HYDRANT_COLOR}"><span class="dot" style="background:${HYDRANT_COLOR}"></span>${STRINGS.map.popKindHydrant}</div>` +
+    // 消火栓は元データが座標のみで施設名が無いため、種別バッジだけの見出しにする
+    popHead(STRINGS.map.popKindHydrant, HYDRANT_COLOR) +
     `<div class="ev-pop-addr">${esc(STRINGS.map.popHydrantNote)}</div>` +
     (dLine ? `<div class="ev-pop-dist">${esc(dLine)}</div>` : '') +
     `</div>`
@@ -904,9 +930,15 @@ export function MapView() {
     const map = mapRef.current
     if (!map) return
     if (!popupRef.current) {
-      popupRef.current = new maplibregl.Popup({ closeButton: true, offset: 10, maxWidth: '260px' })
+      popupRef.current = new maplibregl.Popup({ closeButton: true, offset: 12, maxWidth: '272px' })
     }
     popupRef.current.setLngLat(lngLat).setHTML(html).addTo(map)
+    // MapLibre既定の閉じるボタンは aria-label が英語（Close popup）なので日本語に差し替える。
+    // setHTML のたびにボタンが作り直されるため、addTo の後に毎回付け直す。
+    popupRef.current
+      .getElement()
+      ?.querySelector('.maplibregl-popup-close-button')
+      ?.setAttribute('aria-label', STRINGS.map.popCloseLabel)
   }
 
   const cursorPointer = useMemo(

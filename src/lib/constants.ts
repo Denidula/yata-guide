@@ -286,6 +286,7 @@ export const STRINGS = {
     popAreaLabel: '二次保健医療圏',
     popTertiaryEr: '三次救急（救命救急センター等）',
     popHydrantNote: '公設上水道消火栓（防火水槽は含みません）',
+    popCloseLabel: '詳細を閉じる',
     // 凡例（避難先ピン）
     legendEvacArea: '避難場所（災害時に逃げる先）',
     legendEvacCenter: '避難所（生活避難の先）',
