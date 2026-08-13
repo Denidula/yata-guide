@@ -500,8 +500,9 @@ export function PlanCard({
         ))}
       </div>
 
-      {/* 家族の集合場所 */}
-      <div className="meeting">
+      {/* 家族の集合場所。受信閲覧モードでは以降の災害モード・共有パネルを出さないため、
+          ここが最後のブロックになる＝免責フッターとの余白（24px）を自分で持つ必要がある。 */}
+      <div className={shared ? 'meeting is-last' : 'meeting'}>
         <div className="es-title">
           <Icon name="pin-address" size={18} /> {STRINGS.plan.meetingTitle}
         </div>

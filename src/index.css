@@ -1923,6 +1923,12 @@ body {
   border-radius: var(--radius);
   padding: 15px 16px;
 }
+/* カード内の最後のブロック（受信閲覧モードの集合場所）。免責フッターとの統一余白24pxを
+   自分で持つ。.plan-card は flex のため隣接マージンは相殺されず、常時付けると
+   通常モードで災害モードブロックとの間が広がりすぎるので shared のときだけ付ける。 */
+.meeting.is-last {
+  margin-bottom: 24px;
+}
 .kit-sec {
   margin-top: 12px;
 }
